@@ -38,7 +38,7 @@ func main() {
 		},
 	}
 
-	errors := make(chan error, 0)
+	errors := make(chan error)
 
 	go func() {
 
@@ -72,10 +72,8 @@ func main() {
 		}
 	}()
 
-	select {
-	case err := <-errors:
-		panic(err)
-	}
+	err := <-errors
+	panic(err)
 
 }
 
@@ -94,6 +92,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("status code <> 200, url : %s", url)
@@ -107,6 +106,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode, url)
