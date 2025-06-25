@@ -1,17 +1,15 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
 func main() {
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
-			metrics: make(map[string]map[string]any),
+			Gauge:   make(map[string]float64),
+			Counter: make(map[string]int64),
 		},
 	}
 
@@ -40,6 +38,7 @@ type MetricsHandler struct {
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -56,16 +55,18 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	metric := Metric{
 		MetricsType:  pathSlice[0],
 		MetricsName:  pathSlice[1],
-		MetricsValue: r.PathValue("MetricsValue"),
+		MetricsValue: pathSlice[2], //r.PathValue("MetricsValue"),
 	}
 
 	err := h.storage.UpdateMetric(metric)
 	if err != nil {
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 
 }
@@ -103,86 +104,3 @@ type Metric struct {
 	MetricsName  string
 	MetricsValue string
 }
-
-type MetricsStorage struct {
-	metrics map[string]map[string]any
-}
-
-func (s *MetricsStorage) UpdateMetric(metric Metric) error {
-
-	switch metricsType := metric.MetricsType; metricsType {
-	case "gauge":
-
-		value, err := strconv.ParseFloat(metric.MetricsValue, 64)
-		if err != nil {
-			return err
-		}
-
-		if s.metrics[metric.MetricsType] == nil {
-			s.metrics[metric.MetricsType] = make(map[string]any)
-		}
-		s.metrics[metric.MetricsType][metric.MetricsName] = value
-	case "counter":
-
-		value, err := strconv.ParseInt(metric.MetricsValue, 10, 64)
-		if err != nil {
-			return err
-		}
-
-		if s.metrics[metric.MetricsType] == nil {
-			s.metrics[metric.MetricsType] = make(map[string]any)
-		}
-
-		if s.metrics[metric.MetricsType][metric.MetricsName] == nil {
-			s.metrics[metric.MetricsType][metric.MetricsName] = value
-		} else {
-			s.metrics[metric.MetricsType][metric.MetricsName] =
-				s.metrics[metric.MetricsType][metric.MetricsName].(int64) + value
-		}
-
-	default:
-		return errMetricsTypeNotFound
-	}
-
-	return nil
-}
-
-func (s *MetricsStorage) GetMetric(metric Metric) (string, error) {
-
-	if s.metrics[metric.MetricsType] == nil {
-		s.metrics[metric.MetricsType] = make(map[string]any)
-	}
-
-	value := s.metrics[metric.MetricsType][metric.MetricsName]
-
-	if value == nil {
-		return "0", nil
-	}
-
-	switch metricsType := metric.MetricsType; metricsType {
-	case "gauge":
-
-		convValue, ok := value.(float64)
-		if !ok {
-			return "", errCantConvertToString
-		}
-
-		return fmt.Sprintf("%f", convValue), nil
-	case "counter":
-
-		convValue, ok := value.(int64)
-		if !ok {
-			return "", errCantConvertToString
-		}
-
-		return strconv.FormatInt(convValue, 10), nil
-
-	default:
-		return "", errMetricsTypeNotFound
-	}
-}
-
-var (
-	errMetricsTypeNotFound = errors.New("metrics type not found")
-	errCantConvertToString = errors.New("can't convert to a string")
-)
