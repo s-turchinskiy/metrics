@@ -5,6 +5,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"reflect"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,8 @@ type MetricsHandler struct {
 
 func main() {
 
+	var mutex sync.Mutex
+
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
 			Gauge:         make(map[string]float64),
@@ -44,21 +47,28 @@ func main() {
 
 		for {
 
+			mutex.Lock()
+
 			err := metricsHandler.storage.UpdateMetrics()
 			if err != nil {
 				errors <- err
 				return
 			}
 
+			mutex.Unlock()
+
 			time.Sleep(pollInterval * time.Second)
-			fmt.Println("1")
+			fmt.Printf("UpdateMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
+
 	}()
 
 	go func() {
 
 		for {
+
+			mutex.Lock()
 
 			err := metricsHandler.storage.ReportMetrics()
 			if err != nil {
@@ -66,8 +76,10 @@ func main() {
 				return
 			}
 
+			mutex.Unlock()
+
 			time.Sleep(reportInterval * time.Second)
-			fmt.Println("2")
+			fmt.Printf("\tReportMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
 	}()
