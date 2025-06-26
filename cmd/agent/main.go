@@ -98,7 +98,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 		}
 
 		if resp.StatusCode() != 200 {
-			return fmt.Errorf("status code <> 200, url : %s", url)
+			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
 		}
 	}
 
@@ -113,7 +113,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 		}
 
 		if resp.StatusCode() != 200 {
-			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode, url)
+			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
 		}
 	}
 
