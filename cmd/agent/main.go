@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"net/http"
+	"github.com/go-resty/resty/v2"
 	"reflect"
 	"runtime"
 	"time"
@@ -85,30 +85,34 @@ type MetricsStorage struct {
 
 func (s *MetricsStorage) ReportMetrics() error {
 
+	client := resty.New()
+
 	for name, value := range s.Gauge {
 
 		url := fmt.Sprintf("%s/update/%s/%s/%f", s.ServerAddress, "gauge", name, value)
-		resp, err := http.Post(url, "text/plain", nil)
+		resp, err := client.R().
+			SetHeader("Content-Type", "text/json").
+			Post(url)
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
 
-		if resp.StatusCode != 200 {
+		if resp.StatusCode() != 200 {
 			return fmt.Errorf("status code <> 200, url : %s", url)
 		}
 	}
 
 	for name, value := range s.Counter {
 
-		url := fmt.Sprintf("%s/update1/%s/%s/%d", s.ServerAddress, "counter", name, value)
-		resp, err := http.Post(url, "text/plain", nil)
+		url := fmt.Sprintf("%s/update/%s/%s/%d", s.ServerAddress, "counter", name, value)
+		resp, err := client.R().
+			SetHeader("Content-Type", "text/json").
+			Post(url)
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
 
-		if resp.StatusCode != 200 {
+		if resp.StatusCode() != 200 {
 			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode, url)
 		}
 	}

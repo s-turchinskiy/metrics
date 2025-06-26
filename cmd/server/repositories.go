@@ -4,11 +4,36 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"unicode/utf8"
 )
 
 type MetricsStorage struct {
 	Gauge   map[string]float64
 	Counter map[string]int64
+}
+
+func (s *MetricsStorage) GetAllMetrics() ([]string, error) {
+
+	var result []string
+	result = append(result, "Gauge")
+	for name, value := range s.Gauge {
+
+		var extraIndent string
+		if utf8.RuneCountInString(name) <= 6 {
+			extraIndent = "\t"
+		}
+		result = append(result, fmt.Sprintf("\t%s:%s\t%s", name, extraIndent, strconv.FormatFloat(value, 'f', -1, 64)))
+	}
+
+	result = append(result, "Counter")
+	for name, value := range s.Counter {
+		var extraIndent string
+		if utf8.RuneCountInString(name) <= 6 {
+			extraIndent = "\t"
+		}
+		result = append(result, fmt.Sprintf("\t%s:%s\t%s", name, extraIndent, strconv.FormatInt(value, 10)))
+	}
+	return result, nil
 }
 
 func (s *MetricsStorage) UpdateMetric(metric Metric) error {
@@ -53,16 +78,16 @@ func (s *MetricsStorage) GetMetric(metric Metric) (string, error) {
 		value, exist := s.Gauge[metric.MetricsName]
 
 		if !exist {
-			return "0", nil
+			return "", fmt.Errorf("not found")
 		}
 
-		return fmt.Sprintf("%f", value), nil
+		return strconv.FormatFloat(value, 'f', -1, 64), nil
 	case "counter":
 
 		value, exist := s.Counter[metric.MetricsName]
 
 		if !exist {
-			return "0", nil
+			return "", fmt.Errorf("not found")
 		}
 
 		return strconv.FormatInt(value, 10), nil
