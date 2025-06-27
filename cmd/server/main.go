@@ -7,7 +7,23 @@ import (
 	"strings"
 )
 
+type NetAddress struct {
+	Host string
+	Port int
+}
+
 func main() {
+
+	addr := NetAddress{Host: "localhost", Port: 8080}
+	parseFlags(&addr)
+	err := run(&addr)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func run(addr *NetAddress) error {
+
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
 			Gauge:   make(map[string]float64),
@@ -29,10 +45,7 @@ func main() {
 	})
 	router.Get(`/`, metricsHandler.GetAllMetrics)
 
-	err := http.ListenAndServe(`:8080`, router)
-	if err != nil {
-		panic(err)
-	}
+	return http.ListenAndServe(addr.String(), router)
 }
 
 type MetricsUpdater interface {

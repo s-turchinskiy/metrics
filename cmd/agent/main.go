@@ -9,9 +9,14 @@ import (
 	"time"
 )
 
-const (
-	pollInterval   = 2
-	reportInterval = 10
+type NetAddress struct {
+	Host string
+	Port int
+}
+
+var (
+	pollInterval   int = 2
+	reportInterval int = 10
 )
 
 var (
@@ -31,13 +36,16 @@ type MetricsHandler struct {
 
 func main() {
 
+	addr := NetAddress{Host: "localhost", Port: 8080}
+	parseFlags(&addr)
+
 	var mutex sync.Mutex
 
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
 			Gauge:         make(map[string]float64),
 			Counter:       make(map[string]int64),
-			ServerAddress: "http://localhost:8080",
+			ServerAddress: "http://" + addr.String(),
 		},
 	}
 
@@ -57,7 +65,7 @@ func main() {
 
 			mutex.Unlock()
 
-			time.Sleep(pollInterval * time.Second)
+			time.Sleep(time.Duration(pollInterval) * time.Second)
 			fmt.Printf("UpdateMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
@@ -78,7 +86,7 @@ func main() {
 
 			mutex.Unlock()
 
-			time.Sleep(reportInterval * time.Second)
+			time.Sleep(time.Duration(reportInterval) * time.Second)
 			fmt.Printf("\tReportMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
