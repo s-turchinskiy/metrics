@@ -71,6 +71,13 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.Method != http.MethodGet {
+		logger.Log.Errorw("Method != Get", "Method", r.Method)
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	metrics, err := h.storage.GetAllMetrics()
 	if err != nil {
 		logger.Log.Error(err.Error())
@@ -85,6 +92,13 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodPost {
+		logger.Log.Errorw("Method != Post", "Method", r.Method)
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
 	if err := r.ParseForm(); err != nil {
 		logger.Log.Error(err.Error())
@@ -119,6 +133,13 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
+
+	if r.Method != http.MethodGet {
+		logger.Log.Errorw("Method != Get", "Method", r.Method)
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
 	if err := r.ParseForm(); err != nil {
 		logger.Log.Error(err.Error())
