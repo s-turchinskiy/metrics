@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/s-turchinskiy/metrics/cmd/server/internal/logger"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"strings"
@@ -18,11 +20,17 @@ func main() {
 	parseFlags(&addr)
 	err := run(&addr)
 	if err != nil {
+
+		logger.Log.Errorw("Server startup error", "error", err.Error())
 		panic(err)
 	}
 }
 
 func run(addr *NetAddress) error {
+
+	if err := logger.Initialize(); err != nil {
+		return err
+	}
 
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
@@ -31,19 +39,16 @@ func run(addr *NetAddress) error {
 		},
 	}
 
-	/*router := http.NewServeMux()
-	router.HandleFunc(`/update/{MetricsType}/{MetricsName}/{MetricsValue}`, metricsHandler.UpdateMetric)
-	router.HandleFunc(`/value/{MetricsType}/{MetricsName}`, metricsHandler.GetMetric)
-	router.HandleFunc(`/`, metricsHandler.GetAllMetrics)*/
-
 	router := chi.NewRouter()
 	router.Route("/update", func(r chi.Router) {
-		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", metricsHandler.UpdateMetric)
+		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", logger.WithLogging(metricsHandler.UpdateMetric))
 	})
 	router.Route("/value", func(r chi.Router) {
-		r.Get("/{MetricsType}/{MetricsName}", metricsHandler.GetMetric)
+		r.Get("/{MetricsType}/{MetricsName}", logger.WithLogging(metricsHandler.GetMetric))
 	})
-	router.Get(`/`, metricsHandler.GetAllMetrics)
+	router.Get(`/`, logger.WithLogging(metricsHandler.GetAllMetrics))
+
+	logger.Log.Info("Running server", zap.String("address", addr.String()))
 
 	return http.ListenAndServe(addr.String(), router)
 }
@@ -61,18 +66,14 @@ type MetricsHandler struct {
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.URL.Path != "/" {
+		logger.Log.Errorw("Path != \"/\"", "path", r.URL.Path)
 		http.NotFound(w, r)
-		return
-	}
-
-	if r.Method != http.MethodGet {
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	metrics, err := h.storage.GetAllMetrics()
 	if err != nil {
+		logger.Log.Error(err.Error())
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
@@ -85,13 +86,8 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodPost {
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	if err := r.ParseForm(); err != nil {
+		logger.Log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -108,6 +104,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	err := h.storage.UpdateMetric(metric)
 	if err != nil {
+		logger.Log.Error(err.Error())
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
@@ -123,12 +120,8 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	if err := r.ParseForm(); err != nil {
+		logger.Log.Error(err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
 		return
@@ -144,6 +137,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	value, err := h.storage.GetMetric(metric)
 	if err != nil {
+		logger.Log.Error(err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
 		return

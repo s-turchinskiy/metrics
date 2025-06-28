@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/s-turchinskiy/metrics/cmd/agent/internal/logger"
 	"reflect"
 	"runtime"
 	"sync"
@@ -36,6 +37,10 @@ type MetricsHandler struct {
 
 func main() {
 
+	if err := logger.Initialize(); err != nil {
+		panic(err)
+	}
+
 	addr := NetAddress{Host: "localhost", Port: 8080}
 	parseFlags(&addr)
 
@@ -59,6 +64,7 @@ func main() {
 
 			err := metricsHandler.storage.UpdateMetrics()
 			if err != nil {
+				logger.Log.Error("error", err.Error())
 				errors <- err
 				return
 			}
@@ -66,7 +72,7 @@ func main() {
 			mutex.Unlock()
 
 			time.Sleep(time.Duration(pollInterval) * time.Second)
-			fmt.Printf("UpdateMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
+			logger.Log.Infow("UpdateMetrics", "PollCount", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
 
@@ -80,6 +86,7 @@ func main() {
 
 			err := metricsHandler.storage.ReportMetrics()
 			if err != nil {
+				logger.Log.Error("error", err.Error())
 				errors <- err
 				return
 			}
@@ -87,7 +94,7 @@ func main() {
 			mutex.Unlock()
 
 			time.Sleep(time.Duration(reportInterval) * time.Second)
-			fmt.Printf("\tReportMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
+			logger.Log.Infow("ReportMetrics", "PollCount", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
 	}()
@@ -110,6 +117,10 @@ func (s *MetricsStorage) ReportMetrics() error {
 	for name, value := range s.Gauge {
 
 		url := fmt.Sprintf("%s/update/%s/%s/%f", s.ServerAddress, "gauge", name, value)
+		logger.Log.Infoln(
+			"url", url,
+			"method", "Post",
+		)
 		resp, err := client.R().
 			SetHeader("Content-Type", "text/json").
 			Post(url)
@@ -118,6 +129,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 		}
 
 		if resp.StatusCode() != 200 {
+
 			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
 		}
 	}
@@ -133,6 +145,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 		}
 
 		if resp.StatusCode() != 200 {
+
 			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
 		}
 	}
