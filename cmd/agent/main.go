@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/s-turchinskiy/metrics/cmd/agent/internal/logger"
@@ -114,9 +115,11 @@ type MetricsStorage struct {
 func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
 
 	url := fmt.Sprintf("%s/update/", ServerAddress)
+	bytes, err := json.Marshal(metric)
 	logger.Log.Infoln(
 		"url", url,
 		"method", "Post",
+		"body", string(bytes),
 	)
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
@@ -150,7 +153,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 
 	for ID, value := range s.Counter {
 
-		metric := models.Metrics{ID: ID, MType: "gauge", Delta: &value}
+		metric := models.Metrics{ID: ID, MType: "counter", Delta: &value}
 		err := ReportMetric(client, s.ServerAddress, metric)
 		if err != nil {
 			return err
