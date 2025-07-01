@@ -188,7 +188,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 	metric := models.StorageMetrics{Name: req.ID, MType: req.MType, Delta: req.Delta, Value: req.Value}
 
-	value, err := h.storage.GetTypedMetric(metric)
+	result, err := h.storage.GetTypedMetric(metric)
 	if err != nil {
 		logger.Log.Error(err.Error())
 		w.WriteHeader(http.StatusNotFound)
@@ -197,7 +197,13 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(value))
+
+	resp := models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		return
+	}
+	logger.Log.Debug("sending HTTP 200 response")
 
 }
 
