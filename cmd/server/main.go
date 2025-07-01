@@ -155,7 +155,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	resp := models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
@@ -170,8 +170,6 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 
 func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", "text/plain")
-
 	if r.Method != http.MethodPost {
 		logger.Log.Errorw("Method != Post", "Method", r.Method)
 		w.Header().Set("Content-Type", "text/plain")
@@ -182,6 +180,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 	var req models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -191,11 +190,13 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 	result, err := h.storage.GetTypedMetric(metric)
 	if err != nil {
 		logger.Log.Error(err.Error())
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	resp := models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
