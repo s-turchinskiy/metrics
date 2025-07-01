@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/cmd/server/internal/models"
+	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"strconv"
 	"unicode/utf8"
 )
