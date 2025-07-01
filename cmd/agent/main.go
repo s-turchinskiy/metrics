@@ -115,7 +115,7 @@ type MetricsStorage struct {
 func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
 
 	url := fmt.Sprintf("%s/update/", ServerAddress)
-	bytes, err := json.Marshal(metric)
+	bytes, _ := json.Marshal(metric)
 	logger.Log.Infoln(
 		"url", url,
 		"method", "Post",
