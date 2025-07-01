@@ -6,6 +6,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/s-turchinskiy/metrics/cmd/agent/internal/logger"
 	"github.com/s-turchinskiy/metrics/models"
+	"math/rand"
 	"reflect"
 	"runtime"
 	"sync"
@@ -66,7 +67,7 @@ func main() {
 
 			err := metricsHandler.storage.UpdateMetrics()
 			if err != nil {
-				logger.Log.Error("error", err.Error())
+				logger.Log.Infoln("error", err.Error())
 				errors <- err
 				return
 			}
@@ -74,7 +75,7 @@ func main() {
 			mutex.Unlock()
 
 			time.Sleep(time.Duration(pollInterval) * time.Second)
-			logger.Log.Infow("UpdateMetrics", "PollCount", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
+			logger.Log.Debugw("UpdateMetrics", "PollCount", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
 
@@ -88,7 +89,7 @@ func main() {
 
 			err := metricsHandler.storage.ReportMetrics()
 			if err != nil {
-				logger.Log.Error("error", err.Error())
+				logger.Log.Infoln("error", err.Error())
 				errors <- err
 				return
 			}
@@ -96,7 +97,7 @@ func main() {
 			mutex.Unlock()
 
 			time.Sleep(time.Duration(reportInterval) * time.Second)
-			logger.Log.Infow("ReportMetrics", "PollCount", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
+			logger.Log.Debugw("ReportMetrics", "PollCount", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
 	}()
@@ -115,23 +116,36 @@ type MetricsStorage struct {
 func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
 
 	url := fmt.Sprintf("%s/update/", ServerAddress)
-	bytes, _ := json.Marshal(metric)
-	logger.Log.Infoln(
-		"url", url,
-		"method", "Post",
-		"body", string(bytes),
-	)
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(metric).
 		Post(url)
 	if err != nil {
+
+		text := err.Error()
+		var bytes []byte
+		bytes, err := json.Marshal(metric)
+		if err != nil {
+			logger.Log.Infow("conversion error metric",
+				"error", err.Error(),
+				"url", url)
+		}
+
+		logger.Log.Infow("error sending request",
+			"error", text,
+			"url", url,
+			"body", string(bytes))
 		return err
 	}
 
 	if resp.StatusCode() != 200 {
 
-		return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
+		logger.Log.Infow("error. status code <> 200",
+			"status code", resp.StatusCode(),
+			"url", url,
+			"body", string(resp.Body()))
+		err := fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
+		return err
 	}
 
 	return nil
@@ -201,6 +215,7 @@ func (s *MetricsStorage) UpdateMetrics() error {
 		}
 	}
 
+	s.Gauge["RandomValue"] = rand.Float64()
 	s.Counter["PollCount"]++
 
 	return nil

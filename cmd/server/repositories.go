@@ -118,7 +118,9 @@ func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (models.St
 		value, exist := s.Gauge[metric.Name]
 
 		if !exist {
-			return result, fmt.Errorf("not found")
+			var zero float64
+			result.Value = &zero
+			return result, nil
 		}
 
 		result.Value = &value
@@ -128,7 +130,9 @@ func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (models.St
 		value, exist := s.Counter[metric.Name]
 
 		if !exist {
-			return result, fmt.Errorf("not found")
+			var zero int64
+			result.Delta = &zero
+			return result, nil
 		}
 
 		result.Delta = &value

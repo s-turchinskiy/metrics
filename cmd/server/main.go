@@ -64,13 +64,13 @@ type MetricsHandler struct {
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.URL.Path != "/" {
-		logger.Log.Errorw("Path != \"/\"", "path", r.URL.Path)
+		logger.Log.Infow("error, Path != \"/\"", "path", r.URL.Path)
 		http.NotFound(w, r)
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		logger.Log.Errorw("Method != Get", "Method", r.Method)
+		logger.Log.Infow("error, Method != Get", "Method", r.Method)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -78,7 +78,7 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 	metrics, err := h.storage.GetAllMetrics()
 	if err != nil {
-		logger.Log.Error(err.Error())
+		logger.Log.Infoln(err.Error())
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
@@ -92,14 +92,14 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
-		logger.Log.Errorw("Method != Post", "Method", r.Method)
+		logger.Log.Infow("error, Method != Post", "Method", r.Method)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	if err := r.ParseForm(); err != nil {
-		logger.Log.Error(err.Error())
+		logger.Log.Infoln(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -116,7 +116,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	err := h.storage.UpdateMetric(metric)
 	if err != nil {
-		logger.Log.Error(err.Error())
+		logger.Log.Infoln(err.Error())
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
@@ -131,16 +131,15 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
-		logger.Log.Errorw("Method != Post", "Method", r.Method)
+		logger.Log.Infow("error, Method != Post", "Method", r.Method)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	logger.Log.Debug("decoding request")
 	var req models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		logger.Log.Info("cannot decode request JSON body", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -148,7 +147,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	metric := models.StorageMetrics{Name: req.ID, MType: req.MType, Delta: req.Delta, Value: req.Value}
 	result, err := h.storage.UpdateTypedMetric(metric)
 	if err != nil {
-		logger.Log.Error(err.Error())
+		logger.Log.Infoln("error", err.Error())
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
@@ -161,17 +160,16 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	resp := models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(resp); err != nil {
-		logger.Log.Debug("error encoding response", zap.Error(err))
+		logger.Log.Info("error encoding response", zap.Error(err))
 		return
 	}
-	logger.Log.Debug("sending HTTP 200 response")
 
 }
 
 func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
-		logger.Log.Errorw("Method != Post", "Method", r.Method)
+		logger.Log.Infow("error, Method != Post", "Method", r.Method)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -179,7 +177,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 	var req models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		logger.Log.Info("cannot decode request JSON body", zap.Error(err))
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -189,7 +187,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 	result, err := h.storage.GetTypedMetric(metric)
 	if err != nil {
-		logger.Log.Error(err.Error())
+		logger.Log.Infoln(err.Error())
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
@@ -201,10 +199,9 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 	resp := models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.Log.Debug("error encoding response", zap.Error(err))
+		logger.Log.Info("error encoding response", zap.Error(err))
 		return
 	}
-	logger.Log.Debug("sending HTTP 200 response")
 
 }
 
@@ -213,14 +210,14 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 
 	if r.Method != http.MethodGet {
-		logger.Log.Errorw("Method != Get", "Method", r.Method)
+		logger.Log.Infow("error, Method != Get", "Method", r.Method)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	if err := r.ParseForm(); err != nil {
-		logger.Log.Error(err.Error())
+		logger.Log.Infoln(err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
 		return
@@ -236,7 +233,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 	value, err := h.storage.GetMetric(metric)
 	if err != nil {
-		logger.Log.Error(err.Error())
+		logger.Log.Infoln(err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
 		return

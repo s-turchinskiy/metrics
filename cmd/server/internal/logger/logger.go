@@ -27,7 +27,7 @@ func Initialize() error {
 	cfg := zap.NewProductionConfig()
 	cfg.OutputPaths = []string{"server.log", "stdout"}
 	cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.DateTime)
-	cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+	cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 
 	logger, err := cfg.Build()
 	if err != nil {
@@ -68,7 +68,7 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 
 		duration := time.Since(start)
 
-		Log.Infoln(
+		Log.Debugln(
 			"uri", r.RequestURI,
 			"method", r.Method,
 			"status", responseData.status,
