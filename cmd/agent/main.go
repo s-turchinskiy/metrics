@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/s-turchinskiy/metrics/cmd/agent/internal/logger"
+	"github.com/s-turchinskiy/metrics/models"
 	"reflect"
 	"runtime"
 	"sync"
@@ -110,43 +111,49 @@ type MetricsStorage struct {
 	ServerAddress string
 }
 
+func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
+
+	url := fmt.Sprintf("%s/update/", ServerAddress)
+	logger.Log.Infoln(
+		"url", url,
+		"method", "Post",
+	)
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(metric).
+		Post(url)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != 200 {
+
+		return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
+	}
+
+	return nil
+
+}
+
 func (s *MetricsStorage) ReportMetrics() error {
 
 	client := resty.New()
 
-	for name, value := range s.Gauge {
+	for ID, value := range s.Gauge {
 
-		url := fmt.Sprintf("%s/update/%s/%s/%f", s.ServerAddress, "gauge", name, value)
-		logger.Log.Infoln(
-			"url", url,
-			"method", "Post",
-		)
-		resp, err := client.R().
-			SetHeader("Content-Type", "text/json").
-			Post(url)
+		metric := models.Metrics{ID: ID, MType: "gauge", Value: &value}
+		err := ReportMetric(client, s.ServerAddress, metric)
 		if err != nil {
 			return err
-		}
-
-		if resp.StatusCode() != 200 {
-
-			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
 		}
 	}
 
-	for name, value := range s.Counter {
+	for ID, value := range s.Counter {
 
-		url := fmt.Sprintf("%s/update/%s/%s/%d", s.ServerAddress, "counter", name, value)
-		resp, err := client.R().
-			SetHeader("Content-Type", "text/json").
-			Post(url)
+		metric := models.Metrics{ID: ID, MType: "gauge", Delta: &value}
+		err := ReportMetric(client, s.ServerAddress, metric)
 		if err != nil {
 			return err
-		}
-
-		if resp.StatusCode() != 200 {
-
-			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
 		}
 	}
 

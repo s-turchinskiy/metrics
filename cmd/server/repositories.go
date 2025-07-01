@@ -3,9 +3,18 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/cmd/server/internal/models"
 	"strconv"
 	"unicode/utf8"
 )
+
+type MetricsUpdater interface {
+	UpdateMetric(metric models.UntypedMetric) error
+	UpdateTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error)
+	GetMetric(metric models.UntypedMetric) (string, error)
+	GetTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error)
+	GetAllMetrics() ([]string, error)
+}
 
 type MetricsStorage struct {
 	Gauge   map[string]float64
@@ -36,7 +45,36 @@ func (s *MetricsStorage) GetAllMetrics() ([]string, error) {
 	return result, nil
 }
 
-func (s *MetricsStorage) UpdateMetric(metric Metric) error {
+func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error) {
+
+	result := models.StorageMetrics{Name: metric.Name, MType: metric.MType}
+	switch metricsType := metric.MType; metricsType {
+	case "gauge":
+
+		newValue := *metric.Value
+		s.Gauge[metric.Name] = newValue
+		result.Value = &newValue
+	case "counter":
+
+		currentValue, exist := s.Counter[metric.Name]
+
+		if !exist {
+			s.Counter[metric.Name] = *metric.Delta
+			return result, nil
+		}
+
+		newValue := currentValue + *metric.Delta
+		s.Counter[metric.Name] = newValue
+		result.Delta = &newValue
+
+	default:
+		return result, errMetricsTypeNotFound
+	}
+
+	return result, nil
+
+}
+func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 
 	switch metricsType := metric.MetricsType; metricsType {
 	case "gauge":
@@ -70,7 +108,38 @@ func (s *MetricsStorage) UpdateMetric(metric Metric) error {
 	return nil
 }
 
-func (s *MetricsStorage) GetMetric(metric Metric) (string, error) {
+func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error) {
+
+	result := models.StorageMetrics{Name: metric.Name, MType: metric.MType}
+
+	switch metricsType := metric.MType; metricsType {
+	case "gauge":
+
+		value, exist := s.Gauge[metric.Name]
+
+		if !exist {
+			return result, fmt.Errorf("not found")
+		}
+
+		result.Value = &value
+		return result, nil
+	case "counter":
+
+		value, exist := s.Counter[metric.Name]
+
+		if !exist {
+			return result, fmt.Errorf("not found")
+		}
+
+		result.Delta = &value
+		return result, nil
+
+	default:
+		return result, errMetricsTypeNotFound
+	}
+}
+
+func (s *MetricsStorage) GetMetric(metric models.UntypedMetric) (string, error) {
 
 	switch metricsType := metric.MetricsType; metricsType {
 	case "gauge":
