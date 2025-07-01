@@ -43,7 +43,7 @@ func run(addr *NetAddress) error {
 
 	router := chi.NewRouter()
 	router.Route("/update", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(metricsHandler.UpdateMetricJson))
+		r.Post("/", logger.WithLogging(metricsHandler.UpdateMetricJSON))
 		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", logger.WithLogging(metricsHandler.UpdateMetric))
 	})
 	router.Route("/value", func(r chi.Router) {
@@ -128,7 +128,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *MetricsHandler) UpdateMetricJson(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		logger.Log.Errorw("Method != Post", "Method", r.Method)
