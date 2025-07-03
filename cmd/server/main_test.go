@@ -35,7 +35,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64)},
 		want: want{
-			contentType: "text/plain",
+			contentType: "text/html",
 			statusCode:  200,
 			storage: &MetricsStorage{
 				Gauge:   map[string]float64{"someMetric": 1.1},
@@ -51,7 +51,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 				Gauge:   make(map[string]float64),
 				Counter: make(map[string]int64)},
 			want: want{
-				contentType: "text/plain",
+				contentType: "text/html",
 				statusCode:  http.StatusMethodNotAllowed,
 				storage: &MetricsStorage{
 					Gauge:   make(map[string]float64),
@@ -67,7 +67,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 				Gauge:   make(map[string]float64),
 				Counter: make(map[string]int64)},
 			want: want{
-				contentType: "text/plain",
+				contentType: "text/html",
 				statusCode:  http.StatusBadRequest,
 				storage: &MetricsStorage{
 					Gauge:   make(map[string]float64),
@@ -119,7 +119,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64)},
 		want: want{
-			contentType: "text/plain",
+			contentType: "text/html",
 			statusCode:  http.StatusNotFound,
 			response:    "not found",
 		},
@@ -132,7 +132,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 				Gauge:   map[string]float64{"someMetric": 1.23},
 				Counter: make(map[string]int64)},
 			want: want{
-				contentType: "text/plain",
+				contentType: "text/html",
 				statusCode:  http.StatusOK,
 				response:    "1.23",
 			},
