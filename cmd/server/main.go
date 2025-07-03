@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/mailru/easyjson"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
@@ -44,14 +45,14 @@ func run(addr *NetAddress) error {
 
 	router := chi.NewRouter()
 	router.Route("/update", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(metricsHandler.UpdateMetricJSON))
-		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", logger.WithLogging(metricsHandler.UpdateMetric))
+		r.Post("/", logger.WithLogging(gzipMiddleware(metricsHandler.UpdateMetricJSON)))
+		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", logger.WithLogging(gzipMiddleware(metricsHandler.UpdateMetric)))
 	})
 	router.Route("/value", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(metricsHandler.GetTypedMetric))
-		r.Get("/{MetricsType}/{MetricsName}", logger.WithLogging(metricsHandler.GetMetric))
+		r.Post("/", logger.WithLogging(gzipMiddleware(metricsHandler.GetTypedMetric)))
+		r.Get("/{MetricsType}/{MetricsName}", logger.WithLogging(gzipMiddleware(metricsHandler.GetMetric)))
 	})
-	router.Get(`/`, logger.WithLogging(metricsHandler.GetAllMetrics))
+	router.Get(`/`, logger.WithLogging(gzipMiddleware(metricsHandler.GetAllMetrics)))
 
 	logger.Log.Info("Running server", zap.String("address", addr.String()))
 
@@ -64,6 +65,9 @@ type MetricsHandler struct {
 
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
 	if r.URL.Path != "/" {
 		logger.Log.Infow("error, Path != \"/\"", "path", r.URL.Path)
 		http.NotFound(w, r)
@@ -72,21 +76,29 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
 		logger.Log.Infow("error, Method != Get", "Method", r.Method)
-		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	metrics, err := h.storage.GetAllMetrics()
-	if err != nil {
-		logger.Log.Infoln(err.Error())
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
+	result := h.storage.GetAllMetrics()
+
+	for mtype, table := range result {
+		io.WriteString(w, fmt.Sprintf("<div>%s</div>", mtype))
+		io.WriteString(w, "<table style=\"margin-left: 40px\">")
+		for name, value := range table {
+			io.WriteString(w, fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", name, value))
+		}
+		io.WriteString(w, "</table>")
 	}
 
-	io.WriteString(w, strings.Join(metrics, "\n"))
+	/*for _, str := range metrics {
+		runes := []rune(str)
+		if runes[0] == '\t' {
+			io.WriteString(w, fmt.Sprintf("%s", str))
+		} else {
+
+		}
+	}*/
 
 }
 
@@ -94,7 +106,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		logger.Log.Infow("error, Method != Post", "Method", r.Method)
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -118,13 +130,13 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	err := h.storage.UpdateMetric(metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 
 }
@@ -133,7 +145,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 
 	if r.Method != http.MethodPost {
 		logger.Log.Infow("error, Method != Post", "Method", r.Method)
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -149,7 +161,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	result, err := h.storage.UpdateTypedMetric(metric)
 	if err != nil {
 		logger.Log.Infoln("error", err.Error())
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -171,7 +183,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 	if r.Method != http.MethodPost {
 		logger.Log.Infow("error, Method != Post", "Method", r.Method)
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -179,7 +191,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 	var req models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Log.Info("cannot decode request JSON body", zap.Error(err))
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -189,7 +201,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 	result, err := h.storage.GetTypedMetric(metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
 		return
@@ -210,11 +222,11 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "text/html")
 
 	if r.Method != http.MethodGet {
 		logger.Log.Infow("error, Method != Get", "Method", r.Method)
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -245,4 +257,32 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(value))
 
+}
+
+func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+
+		if supportsGzip {
+			cw := newCompressWriter(w)
+			w = cw
+			defer cw.Close()
+		}
+
+		contentEncoding := r.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
+		if sendsGzip {
+			cr, err := newCompressReader(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			r.Body = cr
+			defer cr.Close()
+		}
+
+		h.ServeHTTP(w, r)
+	}
 }

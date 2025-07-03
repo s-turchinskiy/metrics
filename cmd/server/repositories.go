@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"strconv"
-	"unicode/utf8"
 )
 
 type MetricsUpdater interface {
@@ -13,7 +12,7 @@ type MetricsUpdater interface {
 	UpdateTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error)
 	GetMetric(metric models.UntypedMetric) (string, error)
 	GetTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error)
-	GetAllMetrics() ([]string, error)
+	GetAllMetrics() map[string]map[string]string
 }
 
 type MetricsStorage struct {
@@ -21,28 +20,24 @@ type MetricsStorage struct {
 	Counter map[string]int64
 }
 
-func (s *MetricsStorage) GetAllMetrics() ([]string, error) {
+func (s *MetricsStorage) GetAllMetrics() map[string]map[string]string {
 
-	var result []string
-	result = append(result, "Gauge")
+	result := make(map[string]map[string]string, 2)
+
+	gauges := make(map[string]string, len(s.Gauge))
 	for name, value := range s.Gauge {
 
-		var extraIndent string
-		if utf8.RuneCountInString(name) <= 6 {
-			extraIndent = "\t"
-		}
-		result = append(result, fmt.Sprintf("\t%s:%s\t%s", name, extraIndent, strconv.FormatFloat(value, 'f', -1, 64)))
+		gauges[name] = strconv.FormatFloat(value, 'f', -1, 64)
 	}
+	result["Gauge"] = gauges
 
-	result = append(result, "Counter")
+	counters := make(map[string]string, len(s.Gauge))
 	for name, value := range s.Counter {
-		var extraIndent string
-		if utf8.RuneCountInString(name) <= 6 {
-			extraIndent = "\t"
-		}
-		result = append(result, fmt.Sprintf("\t%s:%s\t%s", name, extraIndent, strconv.FormatInt(value, 10)))
+		counters[name] = strconv.FormatInt(value, 10)
 	}
-	return result, nil
+	result["Counter"] = counters
+
+	return result
 }
 
 func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error) {
