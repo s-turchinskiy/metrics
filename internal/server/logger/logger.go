@@ -21,6 +21,7 @@ type (
 )
 
 var Log *zap.SugaredLogger = zap.NewNop().Sugar()
+var LogNoSugar *zap.Logger = zap.NewNop()
 
 func Initialize() error {
 
@@ -35,6 +36,7 @@ func Initialize() error {
 	}
 
 	Log = logger.Sugar()
+	LogNoSugar = logger
 
 	return nil
 }

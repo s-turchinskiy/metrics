@@ -13,16 +13,22 @@ import (
 	"strings"
 )
 
-type NetAddress struct {
-	Host string
-	Port int
+func init() {
+
+	if err := logger.Initialize(); err != nil {
+		panic(err)
+	}
+
+	if err := getSettings(); err != nil {
+		logger.Log.Errorw("Get Settings error", "error", err.Error())
+		panic(err)
+	}
+
 }
 
 func main() {
 
-	addr := NetAddress{Host: "localhost", Port: 8080}
-	parseFlags(&addr)
-	err := run(&addr)
+	err := run()
 	if err != nil {
 
 		logger.Log.Errorw("Server startup error", "error", err.Error())
@@ -30,11 +36,7 @@ func main() {
 	}
 }
 
-func run(addr *NetAddress) error {
-
-	if err := logger.Initialize(); err != nil {
-		return err
-	}
+func run() error {
 
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
@@ -54,9 +56,9 @@ func run(addr *NetAddress) error {
 	})
 	router.Get(`/`, logger.WithLogging(gzipMiddleware(metricsHandler.GetAllMetrics)))
 
-	logger.Log.Info("Running server", zap.String("address", addr.String()))
+	logger.Log.Info("Running server", zap.String("address", settings.Address.String()))
 
-	return http.ListenAndServe(addr.String(), router)
+	return http.ListenAndServe(settings.Address.String(), router)
 }
 
 type MetricsHandler struct {
