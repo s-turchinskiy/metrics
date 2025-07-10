@@ -47,6 +47,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 	return nil
 
 }
+
 func ReportMetric(client *resty.Client, url string) error {
 
 	resp, err := client.R().
@@ -60,6 +61,7 @@ func ReportMetric(client *resty.Client, url string) error {
 		return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
 	}
 
+	return nil
 }
 
 func (s *MetricsStorage) UpdateMetrics() error {
