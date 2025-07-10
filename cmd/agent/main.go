@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-resty/resty/v2"
-	"reflect"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -24,11 +21,6 @@ var (
 		"HeapObjects", "HeapReleased", "HeapSys", "LastGC", "Lookups", "MCacheInuse", "MCacheSys", "MSpanInuse", "MSpanSys",
 		"Mallocs", "NextGC", "NumForcedGC", "NumGC", "OtherSys", "PauseTotalNs", "StackInuse", "StackSys", "Sys", "TotalAlloc"}
 )
-
-type MetricsUpdaterReporting interface {
-	UpdateMetrics() error
-	ReportMetrics() error
-}
 
 type MetricsHandler struct {
 	storage MetricsUpdaterReporting
@@ -51,132 +43,50 @@ func main() {
 
 	errors := make(chan error)
 
-	go func() {
-
-		ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
-		for range ticker.C {
-
-			mutex.Lock()
-
-			err := metricsHandler.storage.UpdateMetrics()
-			if err != nil {
-				errors <- err
-				return
-			}
-
-			mutex.Unlock()
-
-			fmt.Printf("UpdateMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
-
-		}
-
-	}()
-
-	go func() {
-
-		ticker := time.Tick(time.Duration(reportInterval) * time.Second)
-		for range ticker {
-			mutex.Lock()
-
-			err := metricsHandler.storage.ReportMetrics()
-			if err != nil {
-				errors <- err
-				return
-			}
-
-			mutex.Unlock()
-
-			fmt.Printf("\tReportMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
-		}
-	}()
+	go UpdateMetrics(metricsHandler, &mutex, errors)
+	go ReportMetrics(metricsHandler, &mutex, errors)
 
 	err := <-errors
 	panic(err)
 
 }
 
-type MetricsStorage struct {
-	Gauge         map[string]float64
-	Counter       map[string]int64
-	ServerAddress string
-}
+func ReportMetrics(h *MetricsHandler, mutex *sync.Mutex, errors chan error) {
 
-func (s *MetricsStorage) ReportMetrics() error {
+	ticker := time.Tick(time.Duration(reportInterval) * time.Second)
+	for range ticker {
+		mutex.Lock()
 
-	client := resty.New()
-
-	for name, value := range s.Gauge {
-
-		url := fmt.Sprintf("%s/update/%s/%s/%f", s.ServerAddress, "gauge", name, value)
-		resp, err := client.R().
-			SetHeader("Content-Type", "text/json").
-			Post(url)
+		err := h.storage.ReportMetrics()
 		if err != nil {
-			return err
+			errors <- err
+			return
 		}
 
-		if resp.StatusCode() != 200 {
-			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
-		}
+		mutex.Unlock()
+
+		fmt.Printf("\tReportMetrics, PollCount: %d\n", h.storage.(*MetricsStorage).Counter["PollCount"])
 	}
-
-	for name, value := range s.Counter {
-
-		url := fmt.Sprintf("%s/update/%s/%s/%d", s.ServerAddress, "counter", name, value)
-		resp, err := client.R().
-			SetHeader("Content-Type", "text/json").
-			Post(url)
-		if err != nil {
-			return err
-		}
-
-		if resp.StatusCode() != 200 {
-			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
-		}
-	}
-
-	return nil
 
 }
 
-func (s *MetricsStorage) UpdateMetrics() error {
+func UpdateMetrics(h *MetricsHandler, mutex *sync.Mutex, errors chan error) {
 
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+	ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	for range ticker.C {
 
-	v := reflect.ValueOf(memStats)
+		mutex.Lock()
 
-	typeOfS := v.Type()
-
-	for i := 0; i < v.NumField(); i++ {
-		for _, metricsName := range metricsNames {
-			if metricsName != typeOfS.Field(i).Name {
-				continue
-			}
-
-			switch typeName := typeOfS.Field(i).Type.Name(); typeName {
-
-			case "uint64":
-				{
-					s.Gauge[metricsName] = float64(v.Field(i).Interface().(uint64))
-				}
-			case "uint32":
-				{
-					s.Gauge[metricsName] = float64(v.Field(i).Interface().(uint32))
-				}
-			case "float64":
-				{
-					s.Gauge[metricsName] = v.Field(i).Interface().(float64)
-				}
-
-			default:
-				return fmt.Errorf("unexpected type %s for metric %s", typeName, metricsName)
-			}
-
+		err := h.storage.UpdateMetrics()
+		if err != nil {
+			errors <- err
+			return
 		}
+
+		mutex.Unlock()
+
+		fmt.Printf("UpdateMetrics, PollCount: %d\n", h.storage.(*MetricsStorage).Counter["PollCount"])
+
 	}
 
-	s.Counter["PollCount"]++
-
-	return nil
 }
