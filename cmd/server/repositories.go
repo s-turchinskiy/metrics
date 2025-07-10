@@ -98,7 +98,6 @@ func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 
 		value, err := strconv.ParseFloat(metric.MetricsValue, 64)
 		if err != nil {
-			s.mutex.Unlock()
 			return fmt.Errorf("MetricsValue = %s, error: "+err.Error(), metric.MetricsValue)
 		}
 
@@ -113,7 +112,7 @@ func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 			return err
 		}
 
-		s.mutex.Unlock()
+		s.mutex.Lock()
 		currentValue, exist := s.Counter[metric.MetricsName]
 
 		if !exist {
