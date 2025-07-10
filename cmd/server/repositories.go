@@ -63,6 +63,10 @@ func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (models
 	switch metricsType := metric.MType; metricsType {
 	case "gauge":
 
+		if metric.Value == nil {
+			return result, fmt.Errorf("value is not defined")
+		}
+
 		newValue := *metric.Value
 		s.mutex.Lock()
 		s.Gauge[metric.Name] = newValue
@@ -70,12 +74,17 @@ func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (models
 		result.Value = &newValue
 	case "counter":
 
+		if metric.Delta == nil {
+			return result, fmt.Errorf("delta is not defined")
+		}
 		s.mutex.Lock()
 		currentValue, exist := s.Counter[metric.Name]
 
 		if !exist {
-			s.Counter[metric.Name] = *metric.Delta
+			newValue := *metric.Delta
+			s.Counter[metric.Name] = newValue
 			s.mutex.Unlock()
+			result.Delta = &newValue
 			return result, nil
 		}
 

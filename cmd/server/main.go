@@ -204,7 +204,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	result, err := h.storage.UpdateTypedMetric(metric)
 	if err != nil {
 		logger.Log.Infoln("error", err.Error())
-		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
