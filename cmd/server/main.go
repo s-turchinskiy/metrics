@@ -124,6 +124,7 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := h.storage.GetAllMetrics()
+	w.WriteHeader(http.StatusOK)
 
 	for mtype, table := range result {
 		io.WriteString(w, fmt.Sprintf("<div>%s</div>", mtype))
@@ -180,6 +181,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
 
 }
 
@@ -210,6 +212,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
 	resp := models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
 	enc := json.NewEncoder(w)
@@ -265,6 +268,8 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 		logger.Log.Info("error encoding response", zap.Error(err))
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 	w.Write(rawBytes)
 
 }
@@ -303,6 +308,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(value))
 
 }
