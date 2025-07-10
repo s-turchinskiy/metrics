@@ -65,7 +65,7 @@ func (s programSettings) SaveYaml(filename string) error {
 	}
 	defer f.Close()
 
-	_, err = io.WriteString(f, string(yamlFile))
+	_, err = io.Writer.Write(f, yamlFile)
 	if err != nil {
 		return err
 	}
