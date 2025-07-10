@@ -6,9 +6,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/models"
-	"math/rand"
-	"reflect"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -28,11 +25,6 @@ var (
 		"HeapObjects", "HeapReleased", "HeapSys", "LastGC", "Lookups", "MCacheInuse", "MCacheSys", "MSpanInuse", "MSpanSys",
 		"Mallocs", "NextGC", "NumForcedGC", "NumGC", "OtherSys", "PauseTotalNs", "StackInuse", "StackSys", "Sys", "TotalAlloc"}
 )
-
-type MetricsUpdaterReporting interface {
-	UpdateMetrics() error
-	ReportMetrics() error
-}
 
 type MetricsHandler struct {
 	storage MetricsUpdaterReporting
@@ -59,58 +51,12 @@ func main() {
 
 	errors := make(chan error)
 
-	go func() {
-
-		for {
-
-			mutex.Lock()
-
-			err := metricsHandler.storage.UpdateMetrics()
-			if err != nil {
-				logger.Log.Infoln("error", err.Error())
-				errors <- err
-				return
-			}
-
-			mutex.Unlock()
-
-			time.Sleep(time.Duration(pollInterval) * time.Second)
-			logger.Log.Debugw("UpdateMetrics", "PollCount", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
-
-		}
-
-	}()
-
-	go func() {
-
-		for {
-
-			mutex.Lock()
-
-			err := metricsHandler.storage.ReportMetrics()
-			if err != nil {
-				logger.Log.Infoln("error", err.Error())
-				errors <- err
-				return
-			}
-
-			mutex.Unlock()
-
-			time.Sleep(time.Duration(reportInterval) * time.Second)
-			logger.Log.Debugw("ReportMetrics", "PollCount", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
-
-		}
-	}()
+	go UpdateMetrics(metricsHandler, &mutex, errors)
+	go ReportMetrics(metricsHandler, &mutex, errors)
 
 	err := <-errors
 	panic(err)
 
-}
-
-type MetricsStorage struct {
-	Gauge         map[string]float64
-	Counter       map[string]int64
-	ServerAddress string
 }
 
 func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
@@ -152,71 +98,43 @@ func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 
 }
 
-func (s *MetricsStorage) ReportMetrics() error {
+func ReportMetrics(h *MetricsHandler, mutex *sync.Mutex, errors chan error) {
 
-	client := resty.New()
+	ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	for range ticker.C {
 
-	for ID, value := range s.Gauge {
+		mutex.Lock()
 
-		metric := models.Metrics{ID: ID, MType: "gauge", Value: &value}
-		err := ReportMetric(client, s.ServerAddress, metric)
+		err := h.storage.ReportMetrics()
 		if err != nil {
-			return err
+			logger.Log.Infoln("error", err.Error())
+			errors <- err
+			return
 		}
+
+		mutex.Unlock()
+		logger.Log.Debugw("ReportMetrics", "PollCount", h.storage.(*MetricsStorage).Counter["PollCount"])
+
 	}
-
-	for ID, value := range s.Counter {
-
-		metric := models.Metrics{ID: ID, MType: "counter", Delta: &value}
-		err := ReportMetric(client, s.ServerAddress, metric)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-
 }
 
-func (s *MetricsStorage) UpdateMetrics() error {
+func UpdateMetrics(h *MetricsHandler, mutex *sync.Mutex, errors chan error) {
 
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+	ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	for range ticker.C {
 
-	v := reflect.ValueOf(memStats)
+		mutex.Lock()
 
-	typeOfS := v.Type()
-
-	for i := 0; i < v.NumField(); i++ {
-		for _, metricsName := range metricsNames {
-			if metricsName != typeOfS.Field(i).Name {
-				continue
-			}
-
-			switch typeName := typeOfS.Field(i).Type.Name(); typeName {
-
-			case "uint64":
-				{
-					s.Gauge[metricsName] = float64(v.Field(i).Interface().(uint64))
-				}
-			case "uint32":
-				{
-					s.Gauge[metricsName] = float64(v.Field(i).Interface().(uint32))
-				}
-			case "float64":
-				{
-					s.Gauge[metricsName] = v.Field(i).Interface().(float64)
-				}
-
-			default:
-				return fmt.Errorf("unexpected type %s for metric %s", typeName, metricsName)
-			}
-
+		err := h.storage.UpdateMetrics()
+		if err != nil {
+			logger.Log.Infoln("error", err.Error())
+			errors <- err
+			return
 		}
+
+		mutex.Unlock()
+		logger.Log.Debugw("UpdateMetrics", "PollCount", h.storage.(*MetricsStorage).Counter["PollCount"])
+
 	}
 
-	s.Gauge["RandomValue"] = rand.Float64()
-	s.Counter["PollCount"]++
-
-	return nil
 }

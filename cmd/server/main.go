@@ -58,30 +58,31 @@ func main() {
 		}
 	}()
 
-	if settings.asynchronousWritingDataToFile {
-
-		go func() {
-
-			for {
-
-				time.Sleep(time.Duration(settings.StoreInterval) * time.Second)
-
-				err := metricsHandler.storage.SaveMetricsToFile()
-				if err != nil {
-					logger.Log.Infoln("error", err.Error())
-					errors <- err
-					return
-				}
-
-			}
-
-		}()
-	}
+	go saveMetricsToFilePeriodically(metricsHandler, errors)
 
 	err := <-errors
 	metricsHandler.storage.SaveMetricsToFile()
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	panic(err)
+}
+
+func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
+
+	if !settings.asynchronousWritingDataToFile {
+		return
+	}
+
+	ticker := time.NewTicker(time.Duration(settings.StoreInterval) * time.Second)
+	for range ticker.C {
+
+		err := h.storage.SaveMetricsToFile()
+		if err != nil {
+			logger.Log.Infoln("error", err.Error())
+			errors <- err
+			return
+		}
+	}
+
 }
 
 func run(metricsHandler *MetricsHandler) error {
@@ -109,7 +110,6 @@ type MetricsHandler struct {
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
 
 	if r.URL.Path != "/" {
 		logger.Log.Infow("error, Path != \"/\"", "path", r.URL.Path)
@@ -180,7 +180,6 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
 
 }
 
@@ -211,7 +210,6 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 
 	resp := models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
 	enc := json.NewEncoder(w)
@@ -260,7 +258,6 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 
 	resp := &models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
 	rawBytes, err := easyjson.Marshal(resp)
@@ -306,7 +303,6 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(value))
 
 }
