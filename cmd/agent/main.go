@@ -53,7 +53,8 @@ func main() {
 
 	go func() {
 
-		for {
+		ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+		for range ticker.C {
 
 			mutex.Lock()
 
@@ -65,7 +66,6 @@ func main() {
 
 			mutex.Unlock()
 
-			time.Sleep(time.Duration(pollInterval) * time.Second)
 			fmt.Printf("UpdateMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
 
 		}
@@ -74,8 +74,8 @@ func main() {
 
 	go func() {
 
-		for {
-
+		ticker := time.Tick(time.Duration(reportInterval) * time.Second)
+		for range ticker {
 			mutex.Lock()
 
 			err := metricsHandler.storage.ReportMetrics()
@@ -86,9 +86,7 @@ func main() {
 
 			mutex.Unlock()
 
-			time.Sleep(time.Duration(reportInterval) * time.Second)
 			fmt.Printf("\tReportMetrics, PollCount: %d\n", metricsHandler.storage.(*MetricsStorage).Counter["PollCount"])
-
 		}
 	}()
 
