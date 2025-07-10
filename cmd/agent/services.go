@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"path"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync"
 )
 
@@ -25,35 +27,38 @@ func (s *MetricsStorage) ReportMetrics() error {
 
 	for name, value := range s.Gauge {
 
-		url := fmt.Sprintf("%s/update/%s/%s/%f", s.ServerAddress, "gauge", name, value)
-		resp, err := client.R().
-			SetHeader("Content-Type", "text/json").
-			Post(url)
+		url := path.Join(s.ServerAddress, "update", "gauge", name, strconv.FormatFloat(value, 'f', -1, 64))
+		err := ReportMetric(client, url)
 		if err != nil {
 			return err
 		}
 
-		if resp.StatusCode() != 200 {
-			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
-		}
 	}
 
 	for name, value := range s.Counter {
 
-		url := fmt.Sprintf("%s/update/%s/%s/%d", s.ServerAddress, "counter", name, value)
-		resp, err := client.R().
-			SetHeader("Content-Type", "text/json").
-			Post(url)
+		url := path.Join(s.ServerAddress, "update", "gauge", name, strconv.FormatInt(value, 10))
+		err := ReportMetric(client, url)
 		if err != nil {
 			return err
-		}
-
-		if resp.StatusCode() != 200 {
-			return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
 		}
 	}
 
 	return nil
+
+}
+func ReportMetric(client *resty.Client, url string) error {
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "text/json").
+		Post(url)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != 200 {
+		return fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
+	}
 
 }
 
