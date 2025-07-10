@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/s-turchinskiy/metrics/internal/agent/models"
+	"math/rand"
 	"reflect"
 	"runtime"
 )

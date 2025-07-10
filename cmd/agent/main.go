@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	"github.com/s-turchinskiy/metrics/models"
+	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"sync"
 	"time"
 )
