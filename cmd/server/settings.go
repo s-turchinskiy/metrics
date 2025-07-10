@@ -15,10 +15,11 @@ import (
 )
 
 type programSettings struct {
-	Address         netAddress `yaml:"ADDRESS" lc:"net address host:port to run server"`
-	StoreInterval   int        `yaml:"STORE_INTERVAL" lc:"интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)"`
-	FileStoragePath string     `yaml:"FILE_STORAGE_PATH" lc:"путь до файла, куда сохраняются текущие значения"`
-	Restore         bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
+	Address                       netAddress `yaml:"ADDRESS" lc:"net address host:port to run server"`
+	StoreInterval                 int        `yaml:"STORE_INTERVAL" lc:"интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)"`
+	FileStoragePath               string     `yaml:"FILE_STORAGE_PATH" lc:"путь до файла, куда сохраняются текущие значения"`
+	Restore                       bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
+	asynchronousWritingDataToFile bool
 }
 
 type netAddress struct {
@@ -140,6 +141,8 @@ func getSettings() error {
 		}
 		settings.Restore = restore
 	}
+
+	settings.asynchronousWritingDataToFile = settings.StoreInterval != 0
 
 	logger.LogNoSugar.Info("Settings", zap.Inline(settings)) //если Sugar, то выводит без имен
 	return nil

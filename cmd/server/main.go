@@ -11,6 +11,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 )
 
 func init() {
@@ -28,22 +30,61 @@ func init() {
 
 func main() {
 
-	err := run()
-	if err != nil {
-
-		logger.Log.Errorw("Server startup error", "error", err.Error())
-		panic(err)
-	}
-}
-
-func run() error {
-
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
+			mutex:   sync.Mutex{},
 		},
 	}
+
+	if settings.Restore {
+		err := metricsHandler.storage.LoadMetricsFromFile()
+		if err != nil {
+			logger.Log.Errorw("LoadMetricsFromFile error", "error", err.Error())
+			panic(err)
+		}
+	}
+
+	errors := make(chan error)
+
+	go func() {
+		err := run(metricsHandler)
+		if err != nil {
+
+			logger.Log.Errorw("Server startup error", "error", err.Error())
+			errors <- err
+			return
+		}
+	}()
+
+	if settings.asynchronousWritingDataToFile {
+
+		go func() {
+
+			for {
+
+				time.Sleep(time.Duration(settings.StoreInterval) * time.Second)
+
+				err := metricsHandler.storage.SaveMetricsToFile()
+				if err != nil {
+					logger.Log.Infoln("error", err.Error())
+					errors <- err
+					return
+				}
+
+			}
+
+		}()
+	}
+
+	err := <-errors
+	metricsHandler.storage.SaveMetricsToFile()
+	logger.Log.Infow("error, server stopped", "error", err.Error())
+	panic(err)
+}
+
+func run(metricsHandler *MetricsHandler) error {
 
 	router := chi.NewRouter()
 	router.Route("/update", func(r chi.Router) {
@@ -177,6 +218,15 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	if err := enc.Encode(resp); err != nil {
 		logger.Log.Info("error encoding response", zap.Error(err))
 		return
+	}
+
+	if !settings.asynchronousWritingDataToFile {
+		err := h.storage.SaveMetricsToFile()
+		if err != nil {
+			logger.Log.Info("error SaveMetricsToFile", zap.Error(err))
+			return
+
+		}
 	}
 
 }
