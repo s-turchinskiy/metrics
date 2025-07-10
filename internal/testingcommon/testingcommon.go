@@ -1,4 +1,4 @@
-package testing_common
+package testingcommon
 
 import (
 	"bytes"

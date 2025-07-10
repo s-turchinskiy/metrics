@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/s-turchinskiy/metrics/internal/testing_common"
+	"github.com/s-turchinskiy/metrics/internal/testingcommon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -174,7 +174,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 		Counter: make(map[string]int64)}}
 	handler := http.HandlerFunc(gzipMiddleware(h.UpdateMetricJSON))
 
-	test1 := testing_common.TestPostGzip{Name: "Gauge отправка корректного значения",
+	test1 := testingcommon.TestPostGzip{Name: "Gauge отправка корректного значения",
 		ResponseCode: 200,
 		RequestBody: `{
     	"id" : "someMetric",
@@ -189,7 +189,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 		}`,
 	}
 
-	test2 := testing_common.TestPostGzip{Name: "Counter отправка без указания delta",
+	test2 := testingcommon.TestPostGzip{Name: "Counter отправка без указания delta",
 		ResponseCode: http.StatusBadRequest,
 		RequestBody: `{
 		"id" : "someMetric",
@@ -198,7 +198,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 		}`,
 	}
 
-	test3 := testing_common.TestPostGzip{Name: "Counter отправка некорретного delta",
+	test3 := testingcommon.TestPostGzip{Name: "Counter отправка некорретного delta",
 		ResponseCode: http.StatusInternalServerError,
 		RequestBody: `{
 		"id" : "someMetric",
@@ -207,7 +207,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 		}`,
 	}
 
-	test4 := testing_common.TestPostGzip{Name: "Counter отправка первого значения",
+	test4 := testingcommon.TestPostGzip{Name: "Counter отправка первого значения",
 		ResponseCode: 200,
 		RequestBody: `{
 		"id" : "someMetric",
@@ -222,7 +222,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 		}`,
 	}
 
-	test5 := testing_common.TestPostGzip{Name: "Counter отправка второго значения",
+	test5 := testingcommon.TestPostGzip{Name: "Counter отправка второго значения",
 		ResponseCode: 200,
 		RequestBody: `{
 		    	"id" : "someMetric",
@@ -237,8 +237,8 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 				}`,
 	}
 
-	tests := []testing_common.TestPostGzip{test1, test2, test3, test4, test5}
-	testing_common.TestGzipCompression(t, handler, tests)
+	tests := []testingcommon.TestPostGzip{test1, test2, test3, test4, test5}
+	testingcommon.TestGzipCompression(t, handler, tests)
 }
 
 func TestMetricsHandler_GetTypedMetric(t *testing.T) {
@@ -250,7 +250,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 		Counter: make(map[string]int64)}}
 	handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
 
-	test1 := testing_common.TestPostGzip{Name: "Gauge проверка присутствующего значения",
+	test1 := testingcommon.TestPostGzip{Name: "Gauge проверка присутствующего значения",
 		ResponseCode: 200,
 		RequestBody: `{
     	"id" : "someMetric",
@@ -264,7 +264,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 		}`,
 	}
 
-	test2 := testing_common.TestPostGzip{Name: "Gauge проверка отсутствующего значения",
+	test2 := testingcommon.TestPostGzip{Name: "Gauge проверка отсутствующего значения",
 		ResponseCode: 200,
 		RequestBody: `{
     	"id" : "someMetric1",
@@ -278,7 +278,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 		}`,
 	}
 
-	tests := []testing_common.TestPostGzip{test1, test2}
-	testing_common.TestGzipCompression(t, handler, tests)
+	tests := []testingcommon.TestPostGzip{test1, test2}
+	testingcommon.TestGzipCompression(t, handler, tests)
 
 }
