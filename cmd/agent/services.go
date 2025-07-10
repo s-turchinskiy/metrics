@@ -27,7 +27,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 
 	for name, value := range s.Gauge {
 
-		url := path.Join(s.ServerAddress, "update", "gauge", name, strconv.FormatFloat(value, 'f', -1, 64))
+		url := s.ServerAddress + "/" + path.Join("update", "gauge", name, strconv.FormatFloat(value, 'f', -1, 64))
 		err := ReportMetric(client, url)
 		if err != nil {
 			return err
@@ -37,7 +37,7 @@ func (s *MetricsStorage) ReportMetrics() error {
 
 	for name, value := range s.Counter {
 
-		url := path.Join(s.ServerAddress, "update", "gauge", name, strconv.FormatInt(value, 10))
+		url := s.ServerAddress + "/" + path.Join("update", "gauge", name, strconv.FormatInt(value, 10))
 		err := ReportMetric(client, url)
 		if err != nil {
 			return err
