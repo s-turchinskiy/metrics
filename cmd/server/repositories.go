@@ -4,16 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"unicode/utf8"
 )
 
 type MetricsStorage struct {
 	Gauge   map[string]float64
 	Counter map[string]int64
+	mutex   sync.Mutex
 }
 
 func (s *MetricsStorage) GetAllMetrics() ([]string, error) {
 
+	s.mutex.Lock()
 	var result []string
 	result = append(result, "Gauge")
 	for name, value := range s.Gauge {
@@ -33,6 +36,7 @@ func (s *MetricsStorage) GetAllMetrics() ([]string, error) {
 		}
 		result = append(result, fmt.Sprintf("\t%s:%s\t%s", name, extraIndent, strconv.FormatInt(value, 10)))
 	}
+	s.mutex.Unlock()
 	return result, nil
 }
 
@@ -46,7 +50,9 @@ func (s *MetricsStorage) UpdateMetric(metric Metric) error {
 			return fmt.Errorf("MetricsValue = %s, error: "+err.Error(), metric.MetricsValue)
 		}
 
+		s.mutex.Lock()
 		s.Gauge[metric.MetricsName] = value
+		s.mutex.Unlock()
 	case "counter":
 
 		value, err := strconv.ParseInt(metric.MetricsValue, 10, 64)
@@ -54,14 +60,17 @@ func (s *MetricsStorage) UpdateMetric(metric Metric) error {
 			return err
 		}
 
+		s.mutex.Lock()
 		currentValue, exist := s.Counter[metric.MetricsName]
 
 		if !exist {
 			s.Counter[metric.MetricsName] = value
+			s.mutex.Unlock()
 			return nil
 		}
 
 		s.Counter[metric.MetricsName] = currentValue + value
+		s.mutex.Unlock()
 
 	default:
 		return errMetricsTypeNotFound

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 type NetAddress struct {
@@ -28,6 +29,7 @@ func run(addr *NetAddress) error {
 		storage: &MetricsStorage{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
+			mutex:   sync.Mutex{},
 		},
 	}
 
