@@ -26,7 +26,7 @@ type test struct {
 }
 
 func TestMetricsHandler_UpdateMetric(t *testing.T) {
-
+	
 	tests := []test{{
 		name:    "успешное добавление метрики",
 		method:  http.MethodPost,

@@ -21,14 +21,14 @@ func init() {
 		panic(err)
 	}
 
+}
+
+func main() {
+
 	if err := getSettings(); err != nil {
 		logger.Log.Errorw("Get Settings error", "error", err.Error())
 		panic(err)
 	}
-
-}
-
-func main() {
 
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
