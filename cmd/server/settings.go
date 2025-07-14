@@ -18,6 +18,14 @@ const (
 	filenameSecretSettings = "secretSettings.yaml"
 )
 
+type Store int
+
+const (
+	Memory Store = iota
+	File
+	Database
+)
+
 type ProgramSettings struct {
 	Address                       netAddress `yaml:"ADDRESS" lc:"net address host:port to run server"`
 	StoreInterval                 int        `yaml:"STORE_INTERVAL" lc:"интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)"`
@@ -25,6 +33,7 @@ type ProgramSettings struct {
 	Restore                       bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
 	Database                      database   `yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
 	asynchronousWritingDataToFile bool
+	store                         Store
 }
 
 type SecretSettings struct {
@@ -121,8 +130,9 @@ func getSettings() error {
 		settings.StoreInterval = storeInterval
 	}
 
-	if value := os.Getenv("FILE_STORAGE_PATH"); value != "" {
-		settings.FileStoragePath = value
+	FileStoragePath := os.Getenv("FILE_STORAGE_PATH")
+	if FileStoragePath != "" {
+		settings.FileStoragePath = FileStoragePath
 	}
 
 	if value := os.Getenv("RESTORE"); value != "" {
@@ -133,8 +143,9 @@ func getSettings() error {
 		settings.Restore = restore
 	}
 
-	if value := os.Getenv("DATABASE_DSN"); value != "" {
-		err := settings.Database.Set(value)
+	DatabaseDsn := os.Getenv("DATABASE_DSN")
+	if DatabaseDsn != "" {
+		err := settings.Database.Set(DatabaseDsn)
 		if err != nil {
 			return err
 		}
@@ -142,8 +153,26 @@ func getSettings() error {
 
 	settings.asynchronousWritingDataToFile = settings.StoreInterval != 0
 
+	if FileStoragePath != "" || isFlagPassed("f") {
+		settings.store = File
+	}
+
+	if DatabaseDsn != "" || isFlagPassed("d") {
+		settings.store = Database
+	}
+
 	logger.LogNoSugar.Info("Settings", zap.Inline(settings)) //если Sugar, то выводит без имен
 	return nil
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
 
 func (a *netAddress) String() string {
