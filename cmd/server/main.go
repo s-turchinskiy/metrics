@@ -34,10 +34,11 @@ func main() {
 	}
 
 	db, err := connectToStore()
-	/*if err != nil {
-		logger.Log.Errorw("Connect to database error", "error", err.Error())
-		panic(err)
-	}*/
+	if err != nil {
+		logger.Log.Debugw("Connect to database error", "error", err.Error())
+		//logger.Log.Errorw("Connect to database error", "error", err.Error())
+		//panic(err)
+	}
 
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
