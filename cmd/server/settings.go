@@ -38,7 +38,7 @@ type netAddress struct {
 
 type database struct {
 	Host     string
-	DbName   string
+	DBName   string
 	Login    string
 	Password string
 }
@@ -68,7 +68,7 @@ func (a *netAddress) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 func (d *database) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
 	encoder.AddString("Host", d.Host)
-	encoder.AddString("DbName", d.DbName)
+	encoder.AddString("DbName", d.DBName)
 	encoder.AddString("Login", d.Login)
 	encoder.AddString("Password", "********")
 	return nil
@@ -83,7 +83,7 @@ func getSettings() error {
 		StoreInterval:   300,
 		FileStoragePath: "store.txt",
 		Restore:         true,
-		Database:        database{Host: "localhost", DbName: "metrics", Login: "metrics"},
+		Database:        database{Host: "localhost", DBName: "metrics", Login: "metrics"},
 	}
 
 	err := file.ReadSaveYaml(&settings, filenameSettings)
@@ -166,7 +166,7 @@ func (a *netAddress) Set(s string) error {
 
 func (d *database) String() string {
 	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		d.Host, d.Login, d.Password, d.DbName)
+		d.Host, d.Login, d.Password, d.DBName)
 }
 
 // 'postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable'
@@ -180,13 +180,13 @@ func (d *database) Set(s string) error {
 	hp := strings.Split(s, " ")
 	if len(hp) < 4 {
 		//return errors.New("need address in a form host=%s user=%s password=%s dbname=%s sslmode=disable")
-		return errors.New("Incorrect format database-dsn")
+		return errors.New("incorrect format database-dsn")
 	}
-	
+
 	d.Host = hp[0]
 	d.Login = hp[1]
 	d.Password = hp[2]
-	d.DbName = hp[3]
+	d.DBName = hp[3]
 
 	return nil
 }

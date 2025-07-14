@@ -113,7 +113,7 @@ func run(h *MetricsHandler) error {
 
 func connectToStore() *sql.DB {
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		settings.Database.Host, settings.Database.Login, settings.Database.Password, settings.Database.DbName)
+		settings.Database.Host, settings.Database.Login, settings.Database.Password, settings.Database.DBName)
 
 	db, err := sql.Open("pgx", ps)
 	if err != nil {
