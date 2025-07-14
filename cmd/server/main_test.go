@@ -168,7 +168,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 
 func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
-	settings = programSettings{Restore: false, asynchronousWritingDataToFile: true}
+	settings = ProgramSettings{Restore: false, asynchronousWritingDataToFile: true}
 	h := &MetricsHandler{storage: &MetricsStorage{
 		Gauge:   map[string]float64{"someMetric": 1.23},
 		Counter: make(map[string]int64)}}
@@ -243,7 +243,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
 func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 
-	settings = programSettings{Restore: false, asynchronousWritingDataToFile: true}
+	settings = ProgramSettings{Restore: false, asynchronousWritingDataToFile: true}
 
 	h := &MetricsHandler{storage: &MetricsStorage{
 		Gauge:   map[string]float64{"someMetric": 1.23},
