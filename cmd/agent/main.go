@@ -6,6 +6,8 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
+	"log"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -33,7 +35,7 @@ type MetricsHandler struct {
 func main() {
 
 	if err := logger.Initialize(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	addr := NetAddress{Host: "localhost", Port: 8080}
@@ -55,7 +57,7 @@ func main() {
 	go ReportMetrics(metricsHandler, &mutex, errors)
 
 	err := <-errors
-	panic(err)
+	log.Fatal(err)
 
 }
 
@@ -74,7 +76,8 @@ func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 		if err != nil {
 			logger.Log.Infow("conversion error metric",
 				"error", err.Error(),
-				"url", url)
+				"url", url,
+			)
 		}
 
 		logger.Log.Infow("error sending request",
@@ -84,7 +87,7 @@ func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 		return err
 	}
 
-	if resp.StatusCode() != 200 {
+	if resp.StatusCode() != http.StatusOK {
 
 		logger.Log.Infow("error. status code <> 200",
 			"status code", resp.StatusCode(),

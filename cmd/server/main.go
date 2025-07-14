@@ -7,6 +7,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"go.uber.org/zap"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -21,7 +22,7 @@ type MetricsHandler struct {
 func init() {
 
 	if err := logger.Initialize(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 }
@@ -30,14 +31,12 @@ func main() {
 
 	if err := getSettings(); err != nil {
 		logger.Log.Errorw("Get Settings error", "error", err.Error())
-		panic(err)
+		log.Fatal(err)
 	}
 
 	db, err := connectToStore()
 	if err != nil {
 		logger.Log.Debugw("Connect to database error", "error", err.Error())
-		//logger.Log.Errorw("Connect to database error", "error", err.Error())
-		//panic(err)
 	}
 
 	metricsHandler := &MetricsHandler{
@@ -55,7 +54,7 @@ func main() {
 		err := metricsHandler.storage.LoadMetricsFromFile()
 		if err != nil {
 			logger.Log.Errorw("LoadMetricsFromFile error", "error", err.Error())
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 
@@ -76,7 +75,7 @@ func main() {
 	err = <-errors
 	metricsHandler.storage.SaveMetricsToFile()
 	logger.Log.Infow("error, server stopped", "error", err.Error())
-	panic(err)
+	log.Fatal(err)
 }
 
 func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {

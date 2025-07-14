@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -18,14 +19,14 @@ func parseFlags(addr *NetAddress) {
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
 		err := addr.Set(envAddr)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 
 	if envPollInterval := os.Getenv("POLL_INTERVAL"); envPollInterval != "" {
 		value, err := strconv.Atoi(envPollInterval)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		pollInterval = value
@@ -34,7 +35,7 @@ func parseFlags(addr *NetAddress) {
 	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {
 		value, err := strconv.Atoi(envReportInterval)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		reportInterval = value
