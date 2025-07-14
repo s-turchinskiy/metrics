@@ -94,6 +94,8 @@ func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 		return err
 	}
 
+	return nil
+
 }
 
 func ReportMetrics(h *MetricsHandler, mutex *sync.Mutex, errors chan error) {
@@ -134,4 +136,5 @@ func UpdateMetrics(h *MetricsHandler, mutex *sync.Mutex, errors chan error) {
 		logger.Log.Debugw("UpdateMetrics", "PollCount", h.storage.(*MetricsStorage).Counter["PollCount"])
 
 	}
+
 }
