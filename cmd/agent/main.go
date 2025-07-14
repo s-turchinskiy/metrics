@@ -107,7 +107,7 @@ func ReportMetrics(h *MetricsHandler, mutex *sync.Mutex, errors chan error) {
 
 		err := h.storage.ReportMetrics()
 		if err != nil {
-			logger.Log.Infoln("error", err.Error())
+			logger.Log.Infoln("failed to report metrics", err.Error())
 			errors <- err
 			return
 		}
