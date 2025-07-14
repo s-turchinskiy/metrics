@@ -41,6 +41,7 @@ func (s *MetricsStorage) GetAllMetrics() map[string]map[string]string {
 	result := make(map[string]map[string]string, 2)
 
 	gauges := make(map[string]string, len(s.Gauge))
+
 	for name, value := range s.Gauge {
 
 		gauges[name] = strconv.FormatFloat(value, 'f', -1, 64)

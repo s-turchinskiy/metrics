@@ -88,7 +88,6 @@ func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
 			return
 		}
 	}
-
 }
 
 func run(h *MetricsHandler) error {
