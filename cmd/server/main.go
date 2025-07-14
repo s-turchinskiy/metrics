@@ -33,13 +33,19 @@ func main() {
 		panic(err)
 	}
 
+	db, err := connectToStore()
+	/*if err != nil {
+		logger.Log.Errorw("Connect to database error", "error", err.Error())
+		panic(err)
+	}*/
+
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
 			mutex:   sync.Mutex{},
 		},
-		db: connectToStore(),
+		db: db,
 	}
 
 	defer metricsHandler.db.Close()
@@ -66,7 +72,7 @@ func main() {
 
 	go saveMetricsToFilePeriodically(metricsHandler, errors)
 
-	err := <-errors
+	err = <-errors
 	metricsHandler.storage.SaveMetricsToFile()
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	panic(err)
@@ -111,21 +117,21 @@ func run(h *MetricsHandler) error {
 	return http.ListenAndServe(settings.Address.String(), router)
 }
 
-func connectToStore() *sql.DB {
+func connectToStore() (*sql.DB, error) {
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 		settings.Database.Host, settings.Database.Login, settings.Database.Password, settings.Database.DBName)
 
 	db, err := sql.Open("pgx", ps)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	err = db.Ping()
+	/*err = db.Ping()
 	if err != nil {
-		panic(err)
-	}
-	
-	return db
+		return nil, err
+	}*/
+
+	return db, nil
 
 }
 
