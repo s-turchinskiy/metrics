@@ -121,7 +121,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	metric := models.StorageMetrics{Name: req.ID, MType: req.MType, Delta: req.Delta, Value: req.Value}
 	result, err := h.storage.UpdateTypedMetric(metric)
 	if err != nil {
-		logger.Log.Infoln("error", err.Error())
+		logger.Log.Infoln("error", err.Error(), "metric", metric)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))

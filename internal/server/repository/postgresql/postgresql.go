@@ -60,6 +60,10 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 	}
 
 	_, err = p.DB.Exec(sqlStatement, newValue, time.Now(), metricsName)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+
 	return err
 
 }
