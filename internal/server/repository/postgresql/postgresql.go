@@ -56,7 +56,7 @@ func (p PostgreSQL) CountCounters() int {
 
 func (p PostgreSQL) GetGauge(metricsName string) (float64, bool, error) {
 
-	row := p.DB.QueryRow("SELECT value FROM gauges WHERE metrscs_name = $1", metricsName)
+	row := p.DB.QueryRow("SELECT value FROM gauges WHERE metrics_name = $1", metricsName)
 	var value float64
 	err := row.Scan(&value)
 
@@ -71,7 +71,7 @@ func (p PostgreSQL) GetGauge(metricsName string) (float64, bool, error) {
 
 func (p PostgreSQL) GetCounter(metricsName string) (int64, bool, error) {
 
-	row := p.DB.QueryRow("SELECT value FROM counters WHERE metrscs_name = $1", metricsName)
+	row := p.DB.QueryRow("SELECT value FROM counters WHERE metrics_name = $1", metricsName)
 	var value int64
 	err := row.Scan(&value)
 
