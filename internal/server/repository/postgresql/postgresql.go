@@ -260,7 +260,7 @@ func CreateSchema(db *sql.DB) error {
 }
 
 func CreateTableGauges(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS metrics.gauges (
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS public.gauges (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value DOUBLE PRECISION,
@@ -269,7 +269,7 @@ func CreateTableGauges(db *sql.DB) error {
 }
 
 func CreateTableCounters(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS counters (
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS public.counters (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value INT,
@@ -278,13 +278,16 @@ func CreateTableCounters(db *sql.DB) error {
 }
 
 func tableExist(db *sql.DB) {
-	row := db.QueryRow(`SELECT to_regclass(metrics.counters) IS NOT NULL AS table_exists;`)
+	row := db.QueryRow(`select exists (select *
+               from information_schema.tables
+               where table_name = 'counters' 
+                 and table_schema = 'metrics') as table_exists;`)
 
-	var value string
-	err := row.Scan(&value)
+	var isExist bool
+	err := row.Scan(&isExist)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	logger.Log.Debugln("table counters exist", value)
+	logger.Log.Debugln("table counters exist", isExist)
 }
