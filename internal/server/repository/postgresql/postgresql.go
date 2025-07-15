@@ -34,13 +34,23 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 }
 
 func (p PostgreSQL) CountGauges() int {
-	//TODO implement me
-	panic("implement me")
+
+	row := p.DB.QueryRow("SELECT COUNT(*) FROM gauges")
+	var count int
+	_ = row.Scan(&count)
+
+	return count
+
 }
 
 func (p PostgreSQL) CountCounters() int {
-	//TODO implement me
-	panic("implement me")
+
+	row := p.DB.QueryRow("SELECT COUNT(*) FROM counters")
+	var count int
+	_ = row.Scan(&count)
+
+	return count
+
 }
 
 func (p PostgreSQL) GetGauge(metricsName string) (float64, bool, error) {
@@ -85,6 +95,32 @@ func ConnectToDatabase() (*sql.DB, error) {
 		return nil, err
 	}
 
+	err = CreateTableGauges(db)
+	if err != nil {
+		return nil, err
+	}
+
+	err = CreateTableCounters(db)
+	if err != nil {
+		return nil, err
+	}
+
 	return db, nil
 
+}
+
+func CreateTableGauges(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS gauges (
+    id SERIAL PRIMARY KEY,
+    metrics_name TEXT NOT NULL,
+    value DOUBLE PRECISION)`)
+	return err
+}
+
+func CreateTableCounters(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS counters (
+    id SERIAL PRIMARY KEY,
+    metrics_name TEXT NOT NULL,
+    value INT)`)
+	return err
 }
