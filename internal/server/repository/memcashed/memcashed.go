@@ -5,6 +5,20 @@ type MemCashed struct {
 	Counter map[string]int64
 }
 
+func (m *MemCashed) Ping() ([]byte, error) {
+	return nil, nil
+}
+
+func (m *MemCashed) ReloadAllGauges(newValue map[string]float64) error {
+	m.Gauge = newValue
+	return nil
+}
+
+func (m *MemCashed) ReloadAllCounters(newValue map[string]int64) error {
+	m.Counter = newValue
+	return nil
+}
+
 func (m *MemCashed) GetAllGauges() (map[string]float64, error) {
 
 	return m.Gauge, nil

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
-	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"os"
 	"strconv"
@@ -22,6 +21,7 @@ type MetricsUpdater interface {
 	GetAllMetrics() (map[string]map[string]string, error)
 	SaveMetricsToFile() error
 	LoadMetricsFromFile() error
+	Ping() ([]byte, error)
 }
 
 type MetricsStorage struct {
@@ -39,10 +39,14 @@ type Repository interface {
 	GetCounter(metricsName string) (int64, bool, error)
 	GetAllGauges() (map[string]float64, error)
 	GetAllCounters() (map[string]int64, error)
+	ReloadAllGauges(map[string]float64) error
+	ReloadAllCounters(map[string]int64) error
+	Ping() ([]byte, error)
 }
 
-type MetricsForFile struct {
-	Metrics *memcashed.MemCashed
+type MetricsFileStorage struct {
+	Gauge   map[string]float64
+	Counter map[string]int64
 	Date    string
 }
 
@@ -265,7 +269,22 @@ func (s *MetricsStorage) SaveMetricsToFile() error {
 		logger.Log.Debug("SaveMetricsToFile, no data available")
 		return nil
 	}
-	metricsForFile := MetricsForFile{Metrics: s.Repository.(*memcashed.MemCashed), Date: time.Now().Format(time.DateTime)}
+
+	gauges, err := s.Repository.GetAllGauges()
+	if err != nil {
+		return err
+	}
+
+	counters, err := s.Repository.GetAllCounters()
+	if err != nil {
+		return err
+	}
+
+	metricsForFile := MetricsFileStorage{
+		Gauge:   gauges,
+		Counter: counters,
+		Date:    time.Now().Format(time.DateTime),
+	}
 
 	data, err := json.MarshalIndent(&metricsForFile, "", "   ")
 	if err != nil {
@@ -285,7 +304,7 @@ func (s *MetricsStorage) SaveMetricsToFile() error {
 
 func (s *MetricsStorage) LoadMetricsFromFile() error {
 
-	metricsForFile := &MetricsForFile{}
+	metricsForFile := &MetricsFileStorage{}
 
 	data, err := os.ReadFile(settings.Settings.FileStoragePath)
 
@@ -308,12 +327,25 @@ func (s *MetricsStorage) LoadMetricsFromFile() error {
 	}
 
 	s.mutex.Lock()
-	s.Repository = metricsForFile.Metrics
+	err = s.Repository.ReloadAllGauges(metricsForFile.Gauge)
+	if err != nil {
+		return nil
+	}
+	err = s.Repository.ReloadAllCounters(metricsForFile.Counter)
+	if err != nil {
+		return nil
+	}
 	s.mutex.Unlock()
 
 	logger.Log.Debugw("LoadMetricsFromFile", "data", string(data))
 
 	return err
+
+}
+
+func (s *MetricsStorage) Ping() ([]byte, error) {
+
+	return s.Repository.Ping()
 
 }
 

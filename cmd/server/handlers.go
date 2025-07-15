@@ -236,7 +236,7 @@ func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.db.Ping()
+	data, err := h.storage.Ping()
 
 	if err != nil {
 		logger.Log.Infoln(err.Error())
@@ -245,11 +245,9 @@ func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := json.MarshalIndent(h.db.Stats(), "", "   ")
-	if err == nil {
-		result := []byte("<div>")
-		result = append(result, stats...)
-		result = append(result, []byte("</div>")...)
-		w.Write(result)
-	}
+	result := []byte("<div>")
+	result = append(result, data...)
+	result = append(result, []byte("</div>")...)
+	w.Write(result)
+
 }

@@ -33,7 +33,7 @@ type ProgramSettings struct {
 	Restore                       bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
 	Database                      database   `yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
 	AsynchronousWritingDataToFile bool
-	store                         Store
+	Store                         Store
 }
 
 type SecretSettings struct {
@@ -155,11 +155,11 @@ func GetSettings() error {
 	Settings.AsynchronousWritingDataToFile = Settings.StoreInterval != 0
 
 	if FileStoragePath != "" || isFlagPassed("f") {
-		Settings.store = File
+		Settings.Store = File
 	}
 
 	if DatabaseDsn != "" || isFlagPassed("d") {
-		Settings.store = Database
+		Settings.Store = Database
 	}
 
 	logger.LogNoSugar.Info("Settings", zap.Inline(Settings)) //если Sugar, то выводит без имен

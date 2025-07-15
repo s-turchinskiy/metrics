@@ -1,9 +1,7 @@
 package main
 
 import (
-	"database/sql"
 	"github.com/go-chi/chi/v5"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
@@ -19,7 +17,6 @@ import (
 
 type MetricsHandler struct {
 	storage service.MetricsUpdater
-	db      *sql.DB
 }
 
 func init() {
@@ -42,23 +39,33 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db, err := postgresql.ConnectToStore()
-	if err != nil {
-		logger.Log.Debugw("Connect to database error", "error", err.Error())
-	}
-	defer db.Close()
+	metricsHandler := &MetricsHandler{}
+	if settings.Settings.Store == settings.Database {
 
-	metricsHandler := &MetricsHandler{
-		storage: &service.MetricsStorage{
+		db, err := postgresql.ConnectToStore()
+		if err != nil {
+			logger.Log.Debugw("Connect to database error", "error", err.Error())
+			log.Fatal(err)
+		}
+
+		metricsHandler.storage = &service.MetricsStorage{
+			Repository: &postgresql.PostgreSQL{
+				Db: db,
+			},
+		}
+
+		defer db.Close()
+
+	} else {
+
+		metricsHandler.storage = &service.MetricsStorage{
 			Repository: &memcashed.MemCashed{
 				Gauge:   make(map[string]float64),
 				Counter: make(map[string]int64),
 			},
-		},
-		db: db,
-	}
+		}
 
-	defer metricsHandler.db.Close()
+	}
 
 	if settings.Settings.Restore {
 		err := metricsHandler.storage.LoadMetricsFromFile()
