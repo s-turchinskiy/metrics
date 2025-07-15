@@ -8,6 +8,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
+	"log"
 	"time"
 )
 
@@ -58,6 +59,11 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 	} else {
 		sqlStatement = `INSERT INTO counters (value, date, metrics_name) VALUES ($1, $2, $3)`
 	}
+
+	logger.Log.Debugw("PostgreSQL.UpdateCounter try",
+		"metricsName", metricsName,
+		"value", newValue,
+	)
 
 	_, err = p.DB.Exec(sqlStatement, newValue, time.Now(), metricsName)
 
@@ -229,6 +235,11 @@ func ConnectToDatabase() (*sql.DB, error) {
 		return nil, err
 	}
 
+	err = CreateSchema(db)
+	if err != nil {
+		return nil, err
+	}
+
 	err = CreateTableGauges(db)
 	if err != nil {
 		return nil, err
@@ -243,8 +254,13 @@ func ConnectToDatabase() (*sql.DB, error) {
 
 }
 
+func CreateSchema(db *sql.DB) error {
+	_, err := db.Exec(`CREATE SCHEMA IF NOT EXISTS metrics`)
+	return err
+}
+
 func CreateTableGauges(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS gauges (
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS metrics.gauges (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value DOUBLE PRECISION,
@@ -259,4 +275,16 @@ func CreateTableCounters(db *sql.DB) error {
     value INT,
     date TIMESTAMPTZ)`)
 	return err
+}
+
+func tableExist(db *sql.DB) {
+	row := db.QueryRow(`SELECT to_regclass(metrics.counters) IS NOT NULL AS table_exists;`)
+
+	var value string
+	err := row.Scan(&value)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	logger.Log.Debugln("table counters exist", value)
 }
