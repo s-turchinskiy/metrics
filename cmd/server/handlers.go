@@ -26,6 +26,7 @@ var (
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", contentTypeTextHTML)
+	w.WriteHeader(http.StatusOK)
 
 	if r.URL.Path != "/" {
 		logger.Log.Infow("error, Path != \"/\"", "path", r.URL.Path)
