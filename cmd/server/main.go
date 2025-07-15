@@ -1,10 +1,7 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
 	"github.com/go-chi/chi/v5"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"go.uber.org/zap"
 	"log"
@@ -15,7 +12,6 @@ import (
 
 type MetricsHandler struct {
 	storage MetricsUpdater
-	db      *sql.DB
 }
 
 func init() {
@@ -33,21 +29,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db, err := connectToStore()
-	if err != nil {
-		logger.Log.Debugw("Connect to database error", "error", err.Error())
-	}
-
 	metricsHandler := &MetricsHandler{
 		storage: &MetricsStorage{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
-			mutex:   sync.Mutex{},
 		},
-		db: db,
 	}
-
-	defer metricsHandler.db.Close()
 
 	if settings.Restore {
 		err := metricsHandler.storage.LoadMetricsFromFile()
@@ -71,7 +58,7 @@ func main() {
 
 	go saveMetricsToFilePeriodically(metricsHandler, errors)
 
-	err = <-errors
+	err := <-errors
 	metricsHandler.storage.SaveMetricsToFile()
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	log.Fatal(err)
@@ -114,20 +101,6 @@ func run(h *MetricsHandler) error {
 	logger.Log.Info("Running server", zap.String("address", settings.Address.String()))
 
 	return http.ListenAndServe(settings.Address.String(), router)
-}
-
-func connectToStore() (*sql.DB, error) {
-	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		settings.Database.Host, settings.Database.Login, settings.Database.Password, settings.Database.DBName)
-
-	db, err := sql.Open("pgx", ps)
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
-	w.Header().Set("Content-Type", "text/plain")
-
 }
 
 func gzipMiddleware(next http.Handler) http.Handler {
