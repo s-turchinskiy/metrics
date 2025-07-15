@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/s-turchinskiy/metrics/internal/testingcommon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -35,7 +36,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64)},
 		want: want{
-			contentType: "text/plain",
+			contentType: contentTypeTextHTML,
 			statusCode:  200,
 			storage: &MetricsStorage{
 				Gauge:   map[string]float64{"someMetric": 1.1},
@@ -51,7 +52,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 				Gauge:   make(map[string]float64),
 				Counter: make(map[string]int64)},
 			want: want{
-				contentType: "text/plain",
+				contentType: contentTypeTextHTML,
 				statusCode:  http.StatusMethodNotAllowed,
 				storage: &MetricsStorage{
 					Gauge:   make(map[string]float64),
@@ -67,7 +68,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 				Gauge:   make(map[string]float64),
 				Counter: make(map[string]int64)},
 			want: want{
-				contentType: "text/plain",
+				contentType: contentTypeTextHTML,
 				statusCode:  http.StatusBadRequest,
 				storage: &MetricsStorage{
 					Gauge:   make(map[string]float64),
@@ -119,7 +120,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64)},
 		want: want{
-			contentType: "text/plain",
+			contentType: contentTypeTextHTML,
 			statusCode:  http.StatusNotFound,
 			response:    "not found",
 		},
@@ -132,7 +133,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 				Gauge:   map[string]float64{"someMetric": 1.23},
 				Counter: make(map[string]int64)},
 			want: want{
-				contentType: "text/plain",
+				contentType: contentTypeTextHTML,
 				statusCode:  http.StatusOK,
 				response:    "1.23",
 			},
@@ -163,4 +164,123 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 
 		})
 	}
+}
+
+func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
+
+	settings = ProgramSettings{Restore: false, asynchronousWritingDataToFile: true}
+	h := &MetricsHandler{storage: &MetricsStorage{
+		Gauge:   map[string]float64{"someMetric": 1.23},
+		Counter: make(map[string]int64)}}
+	handler := gzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
+
+	test1 := testingcommon.TestPostGzip{Name: "Gauge отправка корректного значения",
+		ResponseCode: 200,
+		RequestBody: `{
+    	"id" : "someMetric",
+		"type" : "gauge",
+		"value" : 1.25
+		}`,
+
+		ResponseBody: `{
+    	"id" : "someMetric",
+		"type" : "gauge",
+		"value" : 1.25
+		}`,
+	}
+
+	test2 := testingcommon.TestPostGzip{Name: "Counter отправка без указания delta",
+		ResponseCode: http.StatusBadRequest,
+		RequestBody: `{
+		"id" : "someMetric",
+		"type" : "counter",
+		"value" : 2
+		}`,
+	}
+
+	test3 := testingcommon.TestPostGzip{Name: "Counter отправка некорретного delta",
+		ResponseCode: http.StatusInternalServerError,
+		RequestBody: `{
+		"id" : "someMetric",
+		"type" : "counter",
+		"delta" : 1.23
+		}`,
+	}
+
+	test4 := testingcommon.TestPostGzip{Name: "Counter отправка первого значения",
+		ResponseCode: 200,
+		RequestBody: `{
+		"id" : "someMetric",
+		"type" : "counter",
+		"delta" : 3
+		}`,
+
+		ResponseBody: `{
+		"id" : "someMetric",
+		"type" :"counter",
+		"delta" : 3
+		}`,
+	}
+
+	test5 := testingcommon.TestPostGzip{Name: "Counter отправка второго значения",
+		ResponseCode: 200,
+		RequestBody: `{
+		    	"id" : "someMetric",
+				"type" : "counter",
+				"delta" : 5
+				}`,
+
+		ResponseBody: `{
+		    	"id" : "someMetric",
+				"type" :"counter",
+				"delta" : 8
+				}`,
+	}
+
+	tests := []testingcommon.TestPostGzip{test1, test2, test3, test4, test5}
+	testingcommon.TestGzipCompression(t, handler, tests)
+}
+
+func TestMetricsHandler_GetTypedMetric(t *testing.T) {
+
+	settings = ProgramSettings{Restore: false, asynchronousWritingDataToFile: true}
+
+	h := &MetricsHandler{storage: &MetricsStorage{
+		Gauge:   map[string]float64{"someMetric": 1.23},
+		Counter: make(map[string]int64)}}
+
+	//handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
+	handler := gzipMiddleware(http.HandlerFunc(h.GetTypedMetric))
+
+	test1 := testingcommon.TestPostGzip{Name: "Gauge проверка присутствующего значения",
+		ResponseCode: 200,
+		RequestBody: `{
+    	"id" : "someMetric",
+		"type" : "gauge"
+		}`,
+
+		ResponseBody: `{
+    	"id" : "someMetric",
+		"type" : "gauge",
+		"value" : 1.23
+		}`,
+	}
+
+	test2 := testingcommon.TestPostGzip{Name: "Gauge проверка отсутствующего значения",
+		ResponseCode: 200,
+		RequestBody: `{
+    	"id" : "someMetric1",
+		"type" : "gauge"
+		}`,
+
+		ResponseBody: `{
+    	"id" : "someMetric1",
+		"type" : "gauge",
+		"value" : 0
+		}`,
+	}
+
+	tests := []testingcommon.TestPostGzip{test1, test2}
+	testingcommon.TestGzipCompression(t, handler, tests)
+
 }
