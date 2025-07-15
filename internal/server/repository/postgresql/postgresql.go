@@ -64,13 +64,14 @@ func (p PostgreSQL) GetAllCounters() (map[string]int64, error) {
 }
 
 func (p PostgreSQL) ReloadAllGauges(m map[string]float64) error {
-	//TODO implement me
-	panic("implement me")
+
+	return nil
+
 }
 
 func (p PostgreSQL) ReloadAllCounters(m map[string]int64) error {
-	//TODO implement me
-	panic("implement me")
+
+	return nil
 }
 
 func ConnectToStore() (*sql.DB, error) {
