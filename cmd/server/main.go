@@ -50,7 +50,7 @@ func main() {
 
 		metricsHandler.storage = &service.MetricsStorage{
 			Repository: &postgresql.PostgreSQL{
-				Db: db,
+				DB: db,
 			},
 		}
 

@@ -9,17 +9,17 @@ import (
 )
 
 type PostgreSQL struct {
-	Db *sql.DB
+	DB *sql.DB
 }
 
 func (p PostgreSQL) Ping() ([]byte, error) {
 
-	err := p.Db.Ping()
+	err := p.DB.Ping()
 	if err != nil {
 		return nil, err
 	}
 
-	return json.MarshalIndent(p.Db.Stats(), "", "   ")
+	return json.MarshalIndent(p.DB.Stats(), "", "   ")
 
 }
 
