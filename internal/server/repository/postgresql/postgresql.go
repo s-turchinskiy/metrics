@@ -25,13 +25,19 @@ func (p PostgreSQL) Ping() ([]byte, error) {
 }
 
 func (p PostgreSQL) UpdateGauge(metricsName string, newValue float64) error {
-	//TODO implement me
-	panic("implement me")
+
+	sqlStatement := `INSERT INTO gauges (metrics_name, value) VALUES ($1, $2)`
+	_, err := p.DB.Exec(sqlStatement, metricsName, newValue)
+	return err
+
 }
 
 func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
-	//TODO implement me
-	panic("implement me")
+
+	sqlStatement := `INSERT INTO counters (metrics_name, value) VALUES ($1, $2)`
+	_, err := p.DB.Exec(sqlStatement, metricsName, newValue)
+	return err
+
 }
 
 func (p PostgreSQL) CountGauges() int {
@@ -144,13 +150,29 @@ func (p PostgreSQL) GetAllCounters() (map[string]int64, error) {
 
 }
 
-func (p PostgreSQL) ReloadAllGauges(m map[string]float64) error {
+func (p PostgreSQL) ReloadAllGauges(data map[string]float64) error {
+
+	for metricsName, newValue := range data {
+		sqlStatement := `INSERT INTO gauges (metrics_name, value) VALUES ($1, $2)`
+		_, err := p.DB.Exec(sqlStatement, metricsName, newValue)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 
 }
 
-func (p PostgreSQL) ReloadAllCounters(m map[string]int64) error {
+func (p PostgreSQL) ReloadAllCounters(data map[string]int64) error {
+
+	for metricsName, newValue := range data {
+		sqlStatement := `INSERT INTO counters (metrics_name, value) VALUES ($1, $2)`
+		_, err := p.DB.Exec(sqlStatement, metricsName, newValue)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
