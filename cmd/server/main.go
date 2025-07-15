@@ -25,6 +25,8 @@ func init() {
 		log.Fatal(err)
 	}
 
+	db, _ := postgresql.ConnectToDatabase()
+	db.Close()
 }
 
 func main() {
