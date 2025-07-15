@@ -3,18 +3,21 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/file"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
-	yamlcomment "github.com/zijiren233/yaml-comment"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/yaml.v3"
-	"io"
 	"os"
 	"strconv"
 	"strings"
 )
 
-type programSettings struct {
+const (
+	filenameSettings = "settings.yaml"
+)
+
+type ProgramSettings struct {
 	Address                       netAddress `yaml:"ADDRESS" lc:"net address host:port to run server"`
 	StoreInterval                 int        `yaml:"STORE_INTERVAL" lc:"интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)"`
 	FileStoragePath               string     `yaml:"FILE_STORAGE_PATH" lc:"путь до файла, куда сохраняются текущие значения"`
@@ -27,11 +30,21 @@ type netAddress struct {
 	Port int
 }
 
-var settings programSettings
+type database struct {
+	Host     string
+	DBName   string
+	Login    string
+	Password string
+}
 
-func (s programSettings) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
+var settings ProgramSettings
+
+func (s ProgramSettings) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
 	err := encoder.AddObject("Address", &s.Address)
+	if err != nil {
+		return nil
+	}
 	encoder.AddInt("StoreInterval", s.StoreInterval)
 	encoder.AddString("FileStoragePath", s.FileStoragePath)
 	encoder.AddBool("Restore", s.Restore)
@@ -45,65 +58,27 @@ func (a *netAddress) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 	return nil
 }
 
-func (s programSettings) SaveYaml(filename string) error {
+func (d *database) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
-	settings := programSettings{Address: netAddress{
-		Host: "localhost", Port: 8080},
-		StoreInterval:   300,
-		FileStoragePath: "store.txt",
-		Restore:         true,
-	}
-
-	yamlFile, err := yamlcomment.Marshal(&settings)
-	if err != nil {
-		return err
-	}
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = io.Writer.Write(f, yamlFile)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s programSettings) ReadYaml() error {
-
-	filename := "settings.yaml"
-
-	if _, err := os.Stat(filename); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			err := s.SaveYaml(filename)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	yamlFile, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(yamlFile, &settings)
-	if err != nil {
-		return err
-	}
-
+	encoder.AddString("Host", d.Host)
+	encoder.AddString("DbName", d.DBName)
+	encoder.AddString("Login", d.Login)
+	encoder.AddString("Password", "********")
 	return nil
 
 }
 
 func getSettings() error {
 
-	settings = programSettings{}
-	err := settings.ReadYaml()
+	settings = ProgramSettings{
+		Address: netAddress{
+			Host: "localhost", Port: 8080},
+		StoreInterval:   300,
+		FileStoragePath: "store.txt",
+		Restore:         true,
+	}
+
+	err := file.ReadSaveYaml(&settings, filenameSettings)
 	if err != nil {
 		return err
 	}
@@ -130,8 +105,9 @@ func getSettings() error {
 		settings.StoreInterval = storeInterval
 	}
 
-	if value := os.Getenv("FILE_STORAGE_PATH"); value != "" {
-		settings.FileStoragePath = value
+	FileStoragePath := os.Getenv("FILE_STORAGE_PATH")
+	if FileStoragePath != "" {
+		settings.FileStoragePath = FileStoragePath
 	}
 
 	if value := os.Getenv("RESTORE"); value != "" {
@@ -146,6 +122,16 @@ func getSettings() error {
 
 	logger.LogNoSugar.Info("Settings", zap.Inline(settings)) //если Sugar, то выводит без имен
 	return nil
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
 
 func (a *netAddress) String() string {
@@ -163,5 +149,32 @@ func (a *netAddress) Set(s string) error {
 	}
 	a.Host = hp[0]
 	a.Port = port
+	return nil
+}
+
+func (d *database) String() string {
+	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		d.Host, d.Login, d.Password, d.DBName)
+}
+
+// 'postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable'
+func (d *database) Set(s string) error {
+
+	s = strings.Replace(s, "://", " ", 1)
+	s = strings.Replace(s, ":", " ", 1)
+	s = strings.Replace(s, "@", " ", 1)
+	s = strings.Replace(s, ":", " ", 1)
+
+	hp := strings.Split(s, " ")
+	if len(hp) < 4 {
+		//return errors.New("need address in a form host=%s user=%s password=%s dbname=%s sslmode=disable")
+		return errors.New("incorrect format database-dsn")
+	}
+
+	d.Host = hp[0]
+	d.Login = hp[1]
+	d.Password = hp[2]
+	d.DBName = hp[3]
+
 	return nil
 }
