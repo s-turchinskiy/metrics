@@ -102,6 +102,7 @@ func getSettings() error {
 
 	secretSettings := SecretSettings{}
 	err = file.ReadSaveYaml(&secretSettings, filenameSecretSettings)
+
 	if err != nil {
 		return err
 	}

@@ -110,6 +110,7 @@ func run(h *MetricsHandler) error {
 	router.Route("/ping", func(r chi.Router) {
 		r.Get("/", h.Ping)
 	})
+
 	router.Get(`/`, h.GetAllMetrics)
 
 	logger.Log.Info("Running server", zap.String("address", settings.Address.String()))
