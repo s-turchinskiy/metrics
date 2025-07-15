@@ -243,13 +243,25 @@ func InizializatePostgreSQL() (*PostgreSQL, error) {
 	}
 
 	p := &PostgreSQL{DB: db}
+	p.tableSchema = "postgres"
 
-	err = p.loggingSchemas()
+	err = p.loggingData(
+		"schemas",
+		"SELECT schema_name FROM information_schema.schemata WHERE catalog_name = $1;",
+		settings.Settings.Database.DBName)
 	if err != nil {
 		return nil, err
 	}
 
-	p.tableSchema = "postgres"
+	err = p.loggingData(
+		"tables",
+		"SELECT table_name FROM information_schema.tables WHERE table_schema = $1",
+		p.tableSchema)
+
+	if err != nil {
+		return nil, err
+	}
+
 	err = p.createSchema(p.tableSchema)
 	if err != nil {
 		return nil, err
@@ -287,7 +299,7 @@ func (p PostgreSQL) createTableGauges() error {
 
 func (p PostgreSQL) createTableCounters() error {
 	_, err := p.DB.Exec(fmt.Sprintf(
-		`CREATE TABLE IF NOT EXISTS %s.counters (
+		`CREATE TABLE IF NOT EXISTS %s.counterstest (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value INT,
@@ -326,12 +338,11 @@ func (p PostgreSQL) withLoggingCreatingTable(tableName string, createTable func(
 	return nil
 }
 
-func (p PostgreSQL) loggingSchemas() error {
+func (p PostgreSQL) loggingData(title, query, parameter string) error {
 
-	var schemas []string
+	var data []string
 
-	rows, err := p.DB.Query("SELECT schema_name FROM information_schema.schemata WHERE catalog_name = $1;",
-		settings.Settings.Database.DBName)
+	rows, err := p.DB.Query(query, parameter)
 
 	if err != nil {
 		return err
@@ -340,13 +351,13 @@ func (p PostgreSQL) loggingSchemas() error {
 	defer rows.Close()
 
 	for rows.Next() {
-		var schema string
-		err = rows.Scan(&schema)
+		var s string
+		err = rows.Scan(&s)
 		if err != nil {
 			return err
 		}
 
-		schemas = append(schemas, schema)
+		data = append(data, s)
 	}
 
 	err = rows.Err()
@@ -354,7 +365,7 @@ func (p PostgreSQL) loggingSchemas() error {
 		return err
 	}
 
-	logger.Log.Debugw("schemas", "values", strings.Join(schemas, ","))
+	logger.Log.Debugw(title, "values", strings.Join(data, ","))
 	return nil
 
 }
