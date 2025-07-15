@@ -38,9 +38,9 @@ func (p PostgreSQL) UpdateGauge(metricsName string, newValue float64) error {
 	}
 
 	if exist {
-		sqlStatement = `UPDATE gauges SET value = $1, date = $2 WHERE metrics_name = $3`
+		sqlStatement = `UPDATE postgres.gauges SET value = $1, date = $2 WHERE metrics_name = $3`
 	} else {
-		sqlStatement = `INSERT INTO gauges (value, date, metrics_name) VALUES ($1, $2, $3)`
+		sqlStatement = `INSERT INTO postgres.gauges (value, date, metrics_name) VALUES ($1, $2, $3)`
 	}
 
 	_, err = p.DB.Exec(sqlStatement, newValue, time.Now(), metricsName)
@@ -60,9 +60,9 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 	}
 
 	if exist {
-		sqlStatement = `UPDATE counters SET value = $1, date = $2 WHERE metrics_name = $3`
+		sqlStatement = `UPDATE postgres.counters SET value = $1, date = $2 WHERE metrics_name = $3`
 	} else {
-		sqlStatement = `INSERT INTO counters (value, date, metrics_name) VALUES ($1, $2, $3)`
+		sqlStatement = `INSERT INTO postgres.counters (value, date, metrics_name) VALUES ($1, $2, $3)`
 	}
 
 	logger.Log.Debugw("PostgreSQL.UpdateCounter try",
@@ -78,7 +78,7 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 
 func (p PostgreSQL) CountGauges() int {
 
-	row := p.DB.QueryRow("SELECT COUNT(*) FROM gauges")
+	row := p.DB.QueryRow("SELECT COUNT(*) FROM postgres.gauges")
 	var count int
 	_ = row.Scan(&count)
 
@@ -88,7 +88,7 @@ func (p PostgreSQL) CountGauges() int {
 
 func (p PostgreSQL) CountCounters() int {
 
-	row := p.DB.QueryRow("SELECT COUNT(*) FROM counters")
+	row := p.DB.QueryRow("SELECT COUNT(*) FROM postgres.counters")
 	var count int
 	_ = row.Scan(&count)
 
@@ -124,7 +124,7 @@ func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, e
 
 func (p PostgreSQL) GetCounter(metricsName string) (value int64, isExist bool, err error) {
 
-	row := p.DB.QueryRow("SELECT value FROM counters WHERE metrics_name = $1", metricsName)
+	row := p.DB.QueryRow("SELECT value FROM postgres.counters WHERE metrics_name = $1", metricsName)
 	err = row.Scan(&value)
 
 	isExist = true
@@ -150,7 +150,7 @@ func (p PostgreSQL) GetAllGauges() (map[string]float64, error) {
 
 	result := make(map[string]float64)
 
-	rows, err := p.DB.Query("SELECT metrics_name, value from gauges")
+	rows, err := p.DB.Query("SELECT metrics_name, value from postgres.gauges")
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (p PostgreSQL) GetAllCounters() (map[string]int64, error) {
 
 	result := make(map[string]int64)
 
-	rows, err := p.DB.Query("SELECT metrics_name, value from counters")
+	rows, err := p.DB.Query("SELECT metrics_name, value from postgres.counters")
 	if err != nil {
 		return nil, err
 	}
@@ -255,12 +255,12 @@ func InizializatePostgreSQL() (*PostgreSQL, error) {
 		return nil, err
 	}
 
-	err = p.withLoggingCreatingTable(p.tableSchema, "gauges", p.createTableGauges)
+	err = p.withLoggingCreatingTable("gauges", p.createTableGauges)
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.withLoggingCreatingTable(p.tableSchema, "counters", p.createTableCounters)
+	err = p.withLoggingCreatingTable("counters", p.createTableCounters)
 	if err != nil {
 		return nil, err
 	}
@@ -274,33 +274,33 @@ func (p PostgreSQL) createSchema(tableSchema string) error {
 	return err
 }
 
-func (p PostgreSQL) createTableGauges(tableSchema string) error {
+func (p PostgreSQL) createTableGauges() error {
 	_, err := p.DB.Exec(fmt.Sprintf(
 		`CREATE TABLE IF NOT EXISTS %s.gauges (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value DOUBLE PRECISION,
     date TIMESTAMPTZ)`,
-		tableSchema))
+		p.tableSchema))
 	return err
 }
 
-func (p PostgreSQL) createTableCounters(tableSchema string) error {
+func (p PostgreSQL) createTableCounters() error {
 	_, err := p.DB.Exec(fmt.Sprintf(
 		`CREATE TABLE IF NOT EXISTS %s.counters (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value INT,
     date TIMESTAMPTZ)`,
-		tableSchema))
+		p.tableSchema))
 	return err
 }
 
-func (p PostgreSQL) tableExist(tableSchema, tableName string) bool {
+func (p PostgreSQL) tableExist(tableName string) bool {
 	row := p.DB.QueryRow(fmt.Sprintf(`select exists (select *
                from information_schema.tables
                where table_name = '%s' 
-                 and table_schema = '%s') as table_exists;`, tableName, tableSchema))
+                 and table_schema = '%s') as table_exists;`, tableName, p.tableSchema))
 
 	var isExist bool
 	err := row.Scan(&isExist)
@@ -311,16 +311,16 @@ func (p PostgreSQL) tableExist(tableSchema, tableName string) bool {
 	return isExist
 }
 
-func (p PostgreSQL) withLoggingCreatingTable(tableSchema, tableName string, createTable func(string) error) error {
+func (p PostgreSQL) withLoggingCreatingTable(tableName string, createTable func() error) error {
 
-	existBefore := p.tableExist(tableSchema, tableName)
-	err := createTable(tableSchema)
+	existBefore := p.tableExist(tableName)
+	err := createTable()
 	if err != nil {
 		return err
 	}
-	existAfter := p.tableExist(tableSchema, tableName)
+	existAfter := p.tableExist(tableName)
 	if !existBefore && existAfter {
-		logger.Log.Infoln(" create table", tableSchema+"."+tableName)
+		logger.Log.Info(strings.ToUpper("created table "), p.tableSchema+"."+tableName)
 	}
 
 	return nil
