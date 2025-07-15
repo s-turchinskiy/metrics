@@ -172,7 +172,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 	h := &MetricsHandler{storage: &MetricsStorage{
 		Gauge:   map[string]float64{"someMetric": 1.23},
 		Counter: make(map[string]int64)}}
-	handler := http.HandlerFunc(gzipMiddleware(h.UpdateMetricJSON))
+	handler := gzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
 
 	test1 := testingcommon.TestPostGzip{Name: "Gauge отправка корректного значения",
 		ResponseCode: 200,
@@ -248,7 +248,9 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 	h := &MetricsHandler{storage: &MetricsStorage{
 		Gauge:   map[string]float64{"someMetric": 1.23},
 		Counter: make(map[string]int64)}}
-	handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
+
+	//handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
+	handler := gzipMiddleware(http.HandlerFunc(h.GetTypedMetric))
 
 	test1 := testingcommon.TestPostGzip{Name: "Gauge проверка присутствующего значения",
 		ResponseCode: 200,
