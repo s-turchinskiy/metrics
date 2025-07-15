@@ -2,7 +2,12 @@ package main
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
+	"github.com/s-turchinskiy/metrics/internal/server/service"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"log"
 	"net/http"
@@ -11,7 +16,7 @@ import (
 )
 
 type MetricsHandler struct {
-	storage MetricsUpdater
+	storage service.MetricsUpdater
 }
 
 func init() {
@@ -24,19 +29,45 @@ func init() {
 
 func main() {
 
-	if err := getSettings(); err != nil {
+	err := godotenv.Load("./cmd/server/.env")
+	if err != nil {
+		logger.Log.Debugw("Error loading .env file", "error", err.Error())
+	}
+
+	if err := settings.GetSettings(); err != nil {
 		logger.Log.Errorw("Get Settings error", "error", err.Error())
 		log.Fatal(err)
 	}
 
-	metricsHandler := &MetricsHandler{
-		storage: &MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
+	metricsHandler := &MetricsHandler{}
+	if settings.Settings.Store == settings.Database {
+
+		db, err := postgresql.ConnectToStore()
+		if err != nil {
+			logger.Log.Debugw("Connect to database error", "error", err.Error())
+			log.Fatal(err)
+		}
+
+		metricsHandler.storage = &service.MetricsStorage{
+			Repository: &postgresql.PostgreSQL{
+				DB: db,
+			},
+		}
+
+		defer db.Close()
+
+	} else {
+
+		metricsHandler.storage = &service.MetricsStorage{
+			Repository: &memcashed.MemCashed{
+				Gauge:   make(map[string]float64),
+				Counter: make(map[string]int64),
+			},
+		}
+
 	}
 
-	if settings.Restore {
+	if settings.Settings.Restore {
 		err := metricsHandler.storage.LoadMetricsFromFile()
 		if err != nil {
 			logger.Log.Errorw("LoadMetricsFromFile error", "error", err.Error())
@@ -58,7 +89,7 @@ func main() {
 
 	go saveMetricsToFilePeriodically(metricsHandler, errors)
 
-	err := <-errors
+	err = <-errors
 	metricsHandler.storage.SaveMetricsToFile()
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	log.Fatal(err)
@@ -66,11 +97,11 @@ func main() {
 
 func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
 
-	if !settings.asynchronousWritingDataToFile {
+	if !settings.Settings.AsynchronousWritingDataToFile {
 		return
 	}
 
-	ticker := time.NewTicker(time.Duration(settings.StoreInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(settings.Settings.StoreInterval) * time.Second)
 	for range ticker.C {
 
 		err := h.storage.SaveMetricsToFile()
@@ -95,12 +126,15 @@ func run(h *MetricsHandler) error {
 		r.Post("/", h.GetTypedMetric)
 		r.Get("/{MetricsType}/{MetricsName}", h.GetMetric)
 	})
+	router.Route("/ping", func(r chi.Router) {
+		r.Get("/", h.Ping)
+	})
 
 	router.Get(`/`, h.GetAllMetrics)
 
-	logger.Log.Info("Running server", zap.String("address", settings.Address.String()))
+	logger.Log.Info("Running server", zap.String("address", settings.Settings.Address.String()))
 
-	return http.ListenAndServe(settings.Address.String(), router)
+	return http.ListenAndServe(settings.Settings.Address.String(), router)
 }
 
 func gzipMiddleware(next http.Handler) http.Handler {

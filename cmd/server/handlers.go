@@ -6,6 +6,7 @@ import (
 	"github.com/mailru/easyjson"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"html/template"
 	"net/http"
@@ -40,7 +41,12 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := h.storage.GetAllMetrics()
+	result, err := h.storage.GetAllMetrics()
+	if err != nil {
+		logger.Log.Info("error getting data", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	for mtype, table := range result {
 
@@ -132,7 +138,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if !settings.asynchronousWritingDataToFile {
+	if !settings.Settings.AsynchronousWritingDataToFile {
 		err := h.storage.SaveMetricsToFile()
 		if err != nil {
 			logger.Log.Info("error SaveMetricsToFile", zap.Error(err))
@@ -217,5 +223,31 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte(value))
+
+}
+
+func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", contentTypeTextHTML)
+
+	if r.Method != http.MethodGet {
+		logger.Log.Infow("error, Method != Get", "Method", r.Method)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	data, err := h.storage.Ping()
+
+	if err != nil {
+		logger.Log.Infoln(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("<div>" + err.Error() + "</div>"))
+		return
+	}
+
+	result := []byte("<div>")
+	result = append(result, data...)
+	result = append(result, []byte("</div>")...)
+	w.Write(result)
 
 }

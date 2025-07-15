@@ -1,6 +1,9 @@
 package main
 
 import (
+	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
+	"github.com/s-turchinskiy/metrics/internal/server/service"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"github.com/s-turchinskiy/metrics/internal/testingcommon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,15 +18,24 @@ type want struct {
 	contentType string
 	statusCode  int
 	response    string
-	storage     MetricsUpdater
+	storage     service.MetricsUpdater
 }
 
 type test struct {
 	name    string
 	method  string
 	request string
-	storage MetricsUpdater
+	storage service.MetricsUpdater
 	want    want
+}
+
+func EmptyService() *service.MetricsStorage {
+	return &service.MetricsStorage{
+		Repository: &memcashed.MemCashed{
+			Gauge:   make(map[string]float64),
+			Counter: make(map[string]int64),
+		},
+	}
 }
 
 func TestMetricsHandler_UpdateMetric(t *testing.T) {
@@ -32,15 +44,15 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 		name:    "успешное добавление метрики",
 		method:  http.MethodPost,
 		request: "/update/gauge/someMetric/1.1",
-		storage: &MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64)},
+		storage: EmptyService(),
 		want: want{
 			contentType: contentTypeTextHTML,
 			statusCode:  200,
-			storage: &MetricsStorage{
-				Gauge:   map[string]float64{"someMetric": 1.1},
-				Counter: make(map[string]int64),
+			storage: &service.MetricsStorage{
+				Repository: &memcashed.MemCashed{
+					Gauge:   map[string]float64{"someMetric": 1.1},
+					Counter: make(map[string]int64),
+				},
 			},
 		},
 	},
@@ -48,33 +60,23 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 			name:    "метод Get запрещен",
 			method:  http.MethodGet,
 			request: "/update/gauge/someMetric/1.1",
-			storage: &MetricsStorage{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64)},
+			storage: EmptyService(),
 			want: want{
 				contentType: contentTypeTextHTML,
 				statusCode:  http.StatusMethodNotAllowed,
-				storage: &MetricsStorage{
-					Gauge:   make(map[string]float64),
-					Counter: make(map[string]int64),
-				},
+				storage:     EmptyService(),
 			},
 		},
 		{
 			name:    "Значение не float64",
 			method:  http.MethodPost,
 			request: "/update/gauge/someMetric/bad",
-			storage: &MetricsStorage{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64)},
+			storage: EmptyService(),
 			want: want{
 				contentType: contentTypeTextHTML,
 				statusCode:  http.StatusBadRequest,
-				storage: &MetricsStorage{
-					Gauge:   make(map[string]float64),
-					Counter: make(map[string]int64),
-				},
-				response: "MetricsValue = bad, error: strconv.ParseFloat: parsing \"bad\": invalid syntax",
+				storage:     EmptyService(),
+				response:    "MetricsValue = bad, error: strconv.ParseFloat: parsing \"bad\": invalid syntax",
 			},
 		}}
 
@@ -101,7 +103,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 			assert.Equal(t, tt.want.response, string(resBody))
 			//assert.InDeltaMapValues(t, tt.want.storage.(*MetricsStorage).Gauge, tt.storage.(*MetricsStorage).Gauge, 64)
 
-			eq := reflect.DeepEqual(tt.want.storage.(*MetricsStorage).Gauge, tt.storage.(*MetricsStorage).Gauge)
+			eq := reflect.DeepEqual(tt.want.storage.(*service.MetricsStorage).Repository, tt.storage.(*service.MetricsStorage).Repository)
 			if !eq {
 				t.Error("MetricsStorage are unequal.")
 			}
@@ -116,9 +118,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 		name:    "запрос отсутствующей метрики",
 		method:  http.MethodGet,
 		request: "/value/gauge/someMetric",
-		storage: &MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64)},
+		storage: EmptyService(),
 		want: want{
 			contentType: contentTypeTextHTML,
 			statusCode:  http.StatusNotFound,
@@ -129,9 +129,12 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 			name:    "запрос присутсвующей метрики",
 			method:  http.MethodGet,
 			request: "/value/gauge/someMetric",
-			storage: &MetricsStorage{
-				Gauge:   map[string]float64{"someMetric": 1.23},
-				Counter: make(map[string]int64)},
+			storage: &service.MetricsStorage{
+				Repository: &memcashed.MemCashed{
+					Gauge:   map[string]float64{"someMetric": 1.23},
+					Counter: make(map[string]int64),
+				},
+			},
 			want: want{
 				contentType: contentTypeTextHTML,
 				statusCode:  http.StatusOK,
@@ -168,10 +171,13 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 
 func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
-	settings = ProgramSettings{Restore: false, asynchronousWritingDataToFile: true}
-	h := &MetricsHandler{storage: &MetricsStorage{
-		Gauge:   map[string]float64{"someMetric": 1.23},
-		Counter: make(map[string]int64)}}
+	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
+	h := &MetricsHandler{storage: &service.MetricsStorage{
+		Repository: &memcashed.MemCashed{
+			Gauge:   map[string]float64{"someMetric": 1.23},
+			Counter: make(map[string]int64),
+		},
+	}}
 	handler := gzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
 
 	test1 := testingcommon.TestPostGzip{Name: "Gauge отправка корректного значения",
@@ -243,11 +249,15 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
 func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 
-	settings = ProgramSettings{Restore: false, asynchronousWritingDataToFile: true}
+	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
 
-	h := &MetricsHandler{storage: &MetricsStorage{
-		Gauge:   map[string]float64{"someMetric": 1.23},
-		Counter: make(map[string]int64)}}
+	h := &MetricsHandler{storage: &service.MetricsStorage{
+		Repository: &memcashed.MemCashed{
+			Gauge:   map[string]float64{"someMetric": 1.23},
+			Counter: make(map[string]int64),
+		},
+	},
+	}
 
 	//handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
 	handler := gzipMiddleware(http.HandlerFunc(h.GetTypedMetric))
