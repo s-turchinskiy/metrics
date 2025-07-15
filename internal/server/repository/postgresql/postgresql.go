@@ -90,7 +90,7 @@ func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, e
 	err = row.Scan(&value)
 
 	isExist = true
-	
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			isExist = false
@@ -100,24 +100,33 @@ func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, e
 	logger.Log.Debugw("PostgreSQL.GetGauge",
 		"metricsName", metricsName,
 		"isExist", isExist,
+		"value", value,
 	)
 
 	return value, isExist, err
 
 }
 
-func (p PostgreSQL) GetCounter(metricsName string) (int64, bool, error) {
+func (p PostgreSQL) GetCounter(metricsName string) (value int64, isExist bool, err error) {
 
 	row := p.DB.QueryRow("SELECT value FROM counters WHERE metrics_name = $1", metricsName)
-	var value int64
-	err := row.Scan(&value)
+	err = row.Scan(&value)
+
+	isExist = true
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return value, false, nil
+			isExist = false
 		}
 	}
-	return value, true, err
+
+	logger.Log.Debugw("PostgreSQL.GetCounter",
+		"metricsName", metricsName,
+		"isExist", isExist,
+		"value", value,
+	)
+
+	return value, isExist, err
 
 }
 
