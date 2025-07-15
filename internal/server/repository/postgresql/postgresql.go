@@ -3,6 +3,7 @@ package postgresql
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
@@ -54,23 +55,93 @@ func (p PostgreSQL) CountCounters() int {
 }
 
 func (p PostgreSQL) GetGauge(metricsName string) (float64, bool, error) {
-	//TODO implement me
-	panic("implement me")
+
+	row := p.DB.QueryRow("SELECT value FROM gauges WHERE metrscs_name = $1", metricsName)
+	var value float64
+	err := row.Scan(&value)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return value, false, nil
+		}
+	}
+	return value, true, err
+
 }
 
 func (p PostgreSQL) GetCounter(metricsName string) (int64, bool, error) {
-	//TODO implement me
-	panic("implement me")
+
+	row := p.DB.QueryRow("SELECT value FROM counters WHERE metrscs_name = $1", metricsName)
+	var value int64
+	err := row.Scan(&value)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return value, false, nil
+		}
+	}
+	return value, true, err
+
 }
 
 func (p PostgreSQL) GetAllGauges() (map[string]float64, error) {
-	//TODO implement me
-	panic("implement me")
+
+	result := make(map[string]float64)
+
+	rows, err := p.DB.Query("SELECT metrics_name, value from gauges")
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var metricsName string
+		var value float64
+		err = rows.Scan(&metricsName, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		result[metricsName] = value
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+
 }
 
 func (p PostgreSQL) GetAllCounters() (map[string]int64, error) {
-	//TODO implement me
-	panic("implement me")
+
+	result := make(map[string]int64)
+
+	rows, err := p.DB.Query("SELECT metrics_name, value from counters")
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var metricsName string
+		var value int64
+		err = rows.Scan(&metricsName, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		result[metricsName] = value
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+
 }
 
 func (p PostgreSQL) ReloadAllGauges(m map[string]float64) error {
