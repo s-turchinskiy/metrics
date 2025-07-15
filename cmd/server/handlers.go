@@ -25,7 +25,7 @@ var (
 
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", contentTypeTextHTML)
+	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 
 	if r.URL.Path != "/" {
