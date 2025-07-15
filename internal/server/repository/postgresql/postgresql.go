@@ -7,6 +7,7 @@ import (
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
+	"time"
 )
 
 type PostgreSQL struct {
@@ -26,16 +27,38 @@ func (p PostgreSQL) Ping() ([]byte, error) {
 
 func (p PostgreSQL) UpdateGauge(metricsName string, newValue float64) error {
 
-	sqlStatement := `INSERT INTO gauges (metrics_name, value) VALUES ($1, $2)`
-	_, err := p.DB.Exec(sqlStatement, metricsName, newValue)
+	var sqlStatement string
+	_, exist, err := p.GetGauge(metricsName)
+	if err != nil {
+		return err
+	}
+
+	if exist {
+		sqlStatement = `UPDATE gauges SET value = $1, date = $2 WHERE metrics_name = $3`
+	} else {
+		sqlStatement = `INSERT INTO gauges (value, date, metrics_name) VALUES ($1, $2, $3)`
+	}
+
+	_, err = p.DB.Exec(sqlStatement, newValue, time.Now(), metricsName)
 	return err
 
 }
 
 func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 
-	sqlStatement := `INSERT INTO counters (metrics_name, value) VALUES ($1, $2)`
-	_, err := p.DB.Exec(sqlStatement, metricsName, newValue)
+	var sqlStatement string
+	_, exist, err := p.GetCounter(metricsName)
+	if err != nil {
+		return err
+	}
+
+	if exist {
+		sqlStatement = `UPDATE counters SET value = $1, date = $2 WHERE metrics_name = $3`
+	} else {
+		sqlStatement = `INSERT INTO counters (value, date, metrics_name) VALUES ($1, $2, $3)`
+	}
+
+	_, err = p.DB.Exec(sqlStatement, newValue, time.Now(), metricsName)
 	return err
 
 }
@@ -153,8 +176,7 @@ func (p PostgreSQL) GetAllCounters() (map[string]int64, error) {
 func (p PostgreSQL) ReloadAllGauges(data map[string]float64) error {
 
 	for metricsName, newValue := range data {
-		sqlStatement := `INSERT INTO gauges (metrics_name, value) VALUES ($1, $2)`
-		_, err := p.DB.Exec(sqlStatement, metricsName, newValue)
+		err := p.UpdateGauge(metricsName, newValue)
 		if err != nil {
 			return err
 		}
@@ -167,8 +189,7 @@ func (p PostgreSQL) ReloadAllGauges(data map[string]float64) error {
 func (p PostgreSQL) ReloadAllCounters(data map[string]int64) error {
 
 	for metricsName, newValue := range data {
-		sqlStatement := `INSERT INTO counters (metrics_name, value) VALUES ($1, $2)`
-		_, err := p.DB.Exec(sqlStatement, metricsName, newValue)
+		err := p.UpdateCounter(metricsName, newValue)
 		if err != nil {
 			return err
 		}
@@ -206,7 +227,8 @@ func CreateTableGauges(db *sql.DB) error {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS gauges (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
-    value DOUBLE PRECISION)`)
+    value DOUBLE PRECISION,
+    date TIMESTAMPTZ)`)
 	return err
 }
 
@@ -214,6 +236,7 @@ func CreateTableCounters(db *sql.DB) error {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS counters (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
-    value INT)`)
+    value INT,
+    date TIMESTAMPTZ)`)
 	return err
 }

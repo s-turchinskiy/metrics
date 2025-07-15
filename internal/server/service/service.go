@@ -329,11 +329,11 @@ func (s *MetricsStorage) LoadMetricsFromFile() error {
 	s.mutex.Lock()
 	err = s.Repository.ReloadAllGauges(metricsForFile.Gauge)
 	if err != nil {
-		return nil
+		return err
 	}
 	err = s.Repository.ReloadAllCounters(metricsForFile.Counter)
 	if err != nil {
-		return nil
+		return err
 	}
 	s.mutex.Unlock()
 
