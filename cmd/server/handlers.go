@@ -40,15 +40,6 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "</table>")
 	}
 
-	/*for _, str := range metrics {
-		runes := []rune(str)
-		if runes[0] == '\t' {
-			io.WriteString(w, fmt.Sprintf("%s", str))
-		} else {
-
-		}
-	}*/
-
 }
 
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {

@@ -37,6 +37,7 @@ type MetricsForFile struct {
 func (s *MetricsStorage) GetAllMetrics() map[string]map[string]string {
 
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	result := make(map[string]map[string]string, 2)
 
@@ -54,11 +55,13 @@ func (s *MetricsStorage) GetAllMetrics() map[string]map[string]string {
 	}
 	result["Counter"] = counters
 
-	s.mutex.Unlock()
 	return result
 }
 
 func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error) {
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	result := models.StorageMetrics{Name: metric.Name, MType: metric.MType}
 	switch metricsType := metric.MType; metricsType {
@@ -69,29 +72,24 @@ func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (models
 		}
 
 		newValue := *metric.Value
-		s.mutex.Lock()
 		s.Gauge[metric.Name] = newValue
-		s.mutex.Unlock()
 		result.Value = &newValue
 	case "counter":
 
 		if metric.Delta == nil {
 			return result, fmt.Errorf("delta is not defined")
 		}
-		s.mutex.Lock()
 		currentValue, exist := s.Counter[metric.Name]
 
 		if !exist {
 			newValue := *metric.Delta
 			s.Counter[metric.Name] = newValue
-			s.mutex.Unlock()
 			result.Delta = &newValue
 			return result, nil
 		}
 
 		newValue := currentValue + *metric.Delta
 		s.Counter[metric.Name] = newValue
-		s.mutex.Unlock()
 		result.Delta = &newValue
 
 	default:
@@ -103,6 +101,9 @@ func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (models
 }
 func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	switch metricsType := metric.MetricsType; metricsType {
 	case "gauge":
 
@@ -111,9 +112,7 @@ func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 			return fmt.Errorf("MetricsValue = %s, error: "+err.Error(), metric.MetricsValue)
 		}
 
-		s.mutex.Lock()
 		s.Gauge[metric.MetricsName] = value
-		s.mutex.Unlock()
 
 	case "counter":
 
@@ -122,17 +121,14 @@ func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 			return err
 		}
 
-		s.mutex.Lock()
 		currentValue, exist := s.Counter[metric.MetricsName]
 
 		if !exist {
 			s.Counter[metric.MetricsName] = value
-			s.mutex.Unlock()
 			return nil
 		}
 
 		s.Counter[metric.MetricsName] = currentValue + value
-		s.mutex.Unlock()
 
 	default:
 		return errMetricsTypeNotFound
@@ -143,14 +139,15 @@ func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 
 func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (models.StorageMetrics, error) {
 
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	result := models.StorageMetrics{Name: metric.Name, MType: metric.MType}
 
 	switch metricsType := metric.MType; metricsType {
 	case "gauge":
 
-		s.mutex.Lock()
 		value, exist := s.Gauge[metric.Name]
-		s.mutex.Unlock()
 
 		if !exist {
 			var zero float64
@@ -163,9 +160,7 @@ func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (models.St
 
 	case "counter":
 
-		s.mutex.Lock()
 		value, exist := s.Counter[metric.Name]
-		s.mutex.Unlock()
 
 		if !exist {
 			var zero int64
@@ -183,12 +178,13 @@ func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (models.St
 
 func (s *MetricsStorage) GetMetric(metric models.UntypedMetric) (string, error) {
 
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	switch metricsType := metric.MetricsType; metricsType {
 	case "gauge":
 
-		s.mutex.Lock()
 		value, exist := s.Gauge[metric.MetricsName]
-		s.mutex.Unlock()
 
 		if !exist {
 			return "", fmt.Errorf("not found")
@@ -197,9 +193,7 @@ func (s *MetricsStorage) GetMetric(metric models.UntypedMetric) (string, error) 
 		return strconv.FormatFloat(value, 'f', -1, 64), nil
 	case "counter":
 
-		s.mutex.Lock()
 		value, exist := s.Counter[metric.MetricsName]
-		s.mutex.Unlock()
 
 		if !exist {
 			return "", fmt.Errorf("not found")
@@ -215,9 +209,9 @@ func (s *MetricsStorage) GetMetric(metric models.UntypedMetric) (string, error) 
 func (s *MetricsStorage) SaveMetricsToFile() error {
 
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	if len(s.Gauge) == 0 && len(s.Counter) == 0 {
-		s.mutex.Unlock()
 		logger.Log.Debug("SaveMetricsToFile, no data available")
 		return nil
 	}
@@ -225,11 +219,8 @@ func (s *MetricsStorage) SaveMetricsToFile() error {
 
 	data, err := json.MarshalIndent(&metricsForFile, "", "   ")
 	if err != nil {
-		s.mutex.Unlock()
 		return err
 	}
-
-	s.mutex.Unlock()
 
 	err = os.WriteFile(settings.FileStoragePath, data, 0666)
 	if err != nil {
@@ -245,17 +236,6 @@ func (s *MetricsStorage) SaveMetricsToFile() error {
 func (s *MetricsStorage) LoadMetricsFromFile() error {
 
 	metricsForFile := &MetricsForFile{}
-
-	/*file, err := os.OpenFile(settings.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	err = json.NewDecoder(file).Decode(metricsForFile)
-	if err != nil {
-		return err
-	}*/
 
 	data, err := os.ReadFile(settings.FileStoragePath)
 

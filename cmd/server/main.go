@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -43,7 +42,6 @@ func main() {
 		storage: &MetricsStorage{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
-			mutex:   sync.Mutex{},
 		},
 		db: db,
 	}
@@ -125,11 +123,6 @@ func connectToStore() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	/*err = db.Ping()
-	if err != nil {
-		return nil, err
-	}*/
 
 	return db, nil
 
