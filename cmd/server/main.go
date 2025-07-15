@@ -24,7 +24,7 @@ func init() {
 	if err := logger.Initialize(); err != nil {
 		log.Fatal(err)
 	}
-	
+
 }
 
 func main() {
@@ -42,19 +42,17 @@ func main() {
 	metricsHandler := &MetricsHandler{}
 	if settings.Settings.Store == settings.Database {
 
-		db, err := postgresql.ConnectToDatabase()
+		p, err := postgresql.InizializatePostgreSQL()
 		if err != nil {
 			logger.Log.Debugw("Connect to database error", "error", err.Error())
 			log.Fatal(err)
 		}
 
 		metricsHandler.storage = &service.MetricsStorage{
-			Repository: &postgresql.PostgreSQL{
-				DB: db,
-			},
+			Repository: p,
 		}
 
-		defer db.Close()
+		defer p.DB.Close()
 
 	} else {
 

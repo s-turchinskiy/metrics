@@ -224,7 +224,7 @@ func (p PostgreSQL) ReloadAllCounters(data map[string]int64) error {
 	return nil
 }
 
-func ConnectToDatabase() (*sql.DB, error) {
+func InizializatePostgreSQL() (*PostgreSQL, error) {
 
 	dbSettings := settings.Settings.Database
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -235,53 +235,60 @@ func ConnectToDatabase() (*sql.DB, error) {
 		return nil, err
 	}
 
-	err = CreateSchema(db)
+	p := &PostgreSQL{DB: db}
+
+	tableSchema := "praktikum"
+	err = p.createSchema(tableSchema)
 	if err != nil {
 		return nil, err
 	}
 
-	err = CreateTableGauges(db)
+	err = p.withLoggingCreatingTable(tableSchema, "gauges", p.createTableGauges)
 	if err != nil {
 		return nil, err
 	}
 
-	err = CreateTableCounters(db)
+	err = p.withLoggingCreatingTable(tableSchema, "counters", p.createTableCounters)
 	if err != nil {
 		return nil, err
 	}
 
-	return db, nil
+	return p, nil
 
 }
 
-func CreateSchema(db *sql.DB) error {
-	_, err := db.Exec(`CREATE SCHEMA IF NOT EXISTS metrics`)
+func (p PostgreSQL) createSchema(tableSchema string) error {
+	_, err := p.DB.Exec(fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, tableSchema))
 	return err
 }
 
-func CreateTableGauges(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS public.gauges (
+func (p PostgreSQL) createTableGauges(tableSchema string) error {
+	_, err := p.DB.Exec(fmt.Sprintf(
+		`CREATE TABLE IF NOT EXISTS %s.counters (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value DOUBLE PRECISION,
-    date TIMESTAMPTZ)`)
+    date TIMESTAMPTZ)`,
+		tableSchema))
 	return err
 }
 
-func CreateTableCounters(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS public.counters (
+func (p PostgreSQL) createTableCounters(tableSchema string) error {
+	_, err := p.DB.Exec(fmt.Sprintf(
+		`CREATE TABLE IF NOT EXISTS %s.counters (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value INT,
-    date TIMESTAMPTZ)`)
+    date TIMESTAMPTZ)`,
+		tableSchema))
 	return err
 }
 
-func tableExist(db *sql.DB) {
-	row := db.QueryRow(`select exists (select *
+func (p PostgreSQL) tableExist(tableSchema, tableName string) bool {
+	row := p.DB.QueryRow(fmt.Sprintf(`select exists (select *
                from information_schema.tables
-               where table_name = 'counters' 
-                 and table_schema = 'metrics') as table_exists;`)
+               where table_name = '%s' 
+                 and table_schema = '%s') as table_exists;`, tableSchema, tableName))
 
 	var isExist bool
 	err := row.Scan(&isExist)
@@ -289,5 +296,20 @@ func tableExist(db *sql.DB) {
 		log.Fatal(err)
 	}
 
-	logger.Log.Debugln("table counters exist", isExist)
+	return isExist
+}
+
+func (p PostgreSQL) withLoggingCreatingTable(tableSchema, tableName string, f func(string) error) error {
+
+	existBefore := p.tableExist(tableSchema, tableName)
+	err := f(tableSchema)
+	if err != nil {
+		return err
+	}
+	existAfter := p.tableExist(tableSchema, tableName)
+	if !existBefore && existAfter {
+		logger.Log.Infoln(" create table", tableSchema+"."+tableName)
+	}
+
+	return nil
 }
