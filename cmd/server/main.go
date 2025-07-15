@@ -2,10 +2,14 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
+	"github.com/s-turchinskiy/metrics/internal/server/service"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"log"
 	"net/http"
@@ -14,7 +18,7 @@ import (
 )
 
 type MetricsHandler struct {
-	storage MetricsUpdater
+	storage service.MetricsUpdater
 	db      *sql.DB
 }
 
@@ -28,27 +32,35 @@ func init() {
 
 func main() {
 
-	if err := getSettings(); err != nil {
+	err := godotenv.Load("./cmd/server/.env")
+	if err != nil {
+		logger.Log.Debugw("Error loading .env file", "error", err.Error())
+	}
+
+	if err := settings.GetSettings(); err != nil {
 		logger.Log.Errorw("Get Settings error", "error", err.Error())
 		log.Fatal(err)
 	}
 
-	db, err := connectToStore()
+	db, err := postgresql.ConnectToStore()
 	if err != nil {
 		logger.Log.Debugw("Connect to database error", "error", err.Error())
 	}
+	defer db.Close()
 
 	metricsHandler := &MetricsHandler{
-		storage: &MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
+		storage: &service.MetricsStorage{
+			Repository: &memcashed.MemCashed{
+				Gauge:   make(map[string]float64),
+				Counter: make(map[string]int64),
+			},
 		},
 		db: db,
 	}
 
 	defer metricsHandler.db.Close()
 
-	if settings.Restore {
+	if settings.Settings.Restore {
 		err := metricsHandler.storage.LoadMetricsFromFile()
 		if err != nil {
 			logger.Log.Errorw("LoadMetricsFromFile error", "error", err.Error())
@@ -78,11 +90,11 @@ func main() {
 
 func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
 
-	if !settings.asynchronousWritingDataToFile {
+	if !settings.Settings.AsynchronousWritingDataToFile {
 		return
 	}
 
-	ticker := time.NewTicker(time.Duration(settings.StoreInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(settings.Settings.StoreInterval) * time.Second)
 	for range ticker.C {
 
 		err := h.storage.SaveMetricsToFile()
@@ -113,22 +125,9 @@ func run(h *MetricsHandler) error {
 
 	router.Get(`/`, h.GetAllMetrics)
 
-	logger.Log.Info("Running server", zap.String("address", settings.Address.String()))
+	logger.Log.Info("Running server", zap.String("address", settings.Settings.Address.String()))
 
-	return http.ListenAndServe(settings.Address.String(), router)
-}
-
-func connectToStore() (*sql.DB, error) {
-	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		settings.Database.Host, settings.Database.Login, settings.Database.Password, settings.Database.DBName)
-
-	db, err := sql.Open("pgx", ps)
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
-
+	return http.ListenAndServe(settings.Settings.Address.String(), router)
 }
 
 func gzipMiddleware(next http.Handler) http.Handler {

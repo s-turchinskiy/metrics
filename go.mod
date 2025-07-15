@@ -6,6 +6,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/jackc/pgx/v5 v5.7.5
+	github.com/joho/godotenv v1.5.1
 	github.com/mailru/easyjson v0.9.0
 	github.com/stretchr/testify v1.10.0
 	github.com/zijiren233/yaml-comment v0.2.2

@@ -1,4 +1,4 @@
-package main
+package settings
 
 import (
 	"errors"
@@ -32,7 +32,7 @@ type ProgramSettings struct {
 	FileStoragePath               string     `yaml:"FILE_STORAGE_PATH" lc:"путь до файла, куда сохраняются текущие значения"`
 	Restore                       bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
 	Database                      database   `yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
-	asynchronousWritingDataToFile bool
+	AsynchronousWritingDataToFile bool
 	store                         Store
 }
 
@@ -52,7 +52,7 @@ type database struct {
 	Password string
 }
 
-var settings ProgramSettings
+var Settings ProgramSettings
 
 func (s ProgramSettings) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
@@ -84,9 +84,9 @@ func (d *database) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
 }
 
-func getSettings() error {
+func GetSettings() error {
 
-	settings = ProgramSettings{
+	Settings = ProgramSettings{
 		Address: netAddress{
 			Host: "localhost", Port: 8080},
 		StoreInterval:   300,
@@ -95,7 +95,7 @@ func getSettings() error {
 		Database:        database{Host: "localhost", DBName: "metrics", Login: "metrics"},
 	}
 
-	err := file.ReadSaveYaml(&settings, filenameSettings)
+	err := file.ReadSaveYaml(&Settings, filenameSettings)
 	if err != nil {
 		return err
 	}
@@ -106,18 +106,18 @@ func getSettings() error {
 	if err != nil {
 		return err
 	}
-	settings.Database.Password = secretSettings.DBPassword
+	Settings.Database.Password = secretSettings.DBPassword
 
-	flag.Var(&settings.Address, "a", "Net address host:port")
+	flag.Var(&Settings.Address, "a", "Net address host:port")
 	//flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
-	flag.IntVar(&settings.StoreInterval, "i", settings.StoreInterval, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
-	flag.StringVar(&settings.FileStoragePath, "f", settings.FileStoragePath, "Путь до файла, куда сохраняются текущие значения")
-	flag.BoolVar(&settings.Restore, "r", settings.Restore, "Определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
-	flag.Var(&settings.Database, "d", "path to database")
+	flag.IntVar(&Settings.StoreInterval, "i", Settings.StoreInterval, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
+	flag.StringVar(&Settings.FileStoragePath, "f", Settings.FileStoragePath, "Путь до файла, куда сохраняются текущие значения")
+	flag.BoolVar(&Settings.Restore, "r", Settings.Restore, "Определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
+	flag.Var(&Settings.Database, "d", "path to database")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
-		err := settings.Address.Set(envAddr)
+		err := Settings.Address.Set(envAddr)
 		if err != nil {
 			return err
 		}
@@ -128,12 +128,12 @@ func getSettings() error {
 		if err != nil {
 			return err
 		}
-		settings.StoreInterval = storeInterval
+		Settings.StoreInterval = storeInterval
 	}
 
 	FileStoragePath := os.Getenv("FILE_STORAGE_PATH")
 	if FileStoragePath != "" {
-		settings.FileStoragePath = FileStoragePath
+		Settings.FileStoragePath = FileStoragePath
 	}
 
 	if value := os.Getenv("RESTORE"); value != "" {
@@ -141,28 +141,28 @@ func getSettings() error {
 		if err != nil {
 			return err
 		}
-		settings.Restore = restore
+		Settings.Restore = restore
 	}
 
 	DatabaseDsn := os.Getenv("DATABASE_DSN")
 	if DatabaseDsn != "" {
-		err := settings.Database.Set(DatabaseDsn)
+		err := Settings.Database.Set(DatabaseDsn)
 		if err != nil {
 			return err
 		}
 	}
 
-	settings.asynchronousWritingDataToFile = settings.StoreInterval != 0
+	Settings.AsynchronousWritingDataToFile = Settings.StoreInterval != 0
 
 	if FileStoragePath != "" || isFlagPassed("f") {
-		settings.store = File
+		Settings.store = File
 	}
 
 	if DatabaseDsn != "" || isFlagPassed("d") {
-		settings.store = Database
+		Settings.store = Database
 	}
 
-	logger.LogNoSugar.Info("Settings", zap.Inline(settings)) //если Sugar, то выводит без имен
+	logger.LogNoSugar.Info("Settings", zap.Inline(Settings)) //если Sugar, то выводит без имен
 	return nil
 }
 

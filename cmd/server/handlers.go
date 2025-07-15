@@ -6,6 +6,7 @@ import (
 	"github.com/mailru/easyjson"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"html/template"
 	"net/http"
@@ -40,7 +41,12 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := h.storage.GetAllMetrics()
+	result, err := h.storage.GetAllMetrics()
+	if err != nil {
+		logger.Log.Info("error getting data", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	for mtype, table := range result {
 
@@ -132,7 +138,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if !settings.asynchronousWritingDataToFile {
+	if !settings.Settings.AsynchronousWritingDataToFile {
 		err := h.storage.SaveMetricsToFile()
 		if err != nil {
 			logger.Log.Info("error SaveMetricsToFile", zap.Error(err))
