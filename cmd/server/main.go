@@ -100,7 +100,7 @@ func run(h *MetricsHandler) error {
 	router.Use(gzipMiddleware)
 	router.Use(logger.Logger)
 	router.Route("/update", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(h.UpdateMetricJSON))
+		r.Post("/", h.UpdateMetricJSON)
 		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", h.UpdateMetric)
 	})
 	router.Route("/value", func(r chi.Router) {
