@@ -9,6 +9,7 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -243,12 +244,12 @@ func InizializatePostgreSQL() (*PostgreSQL, error) {
 
 	p := &PostgreSQL{DB: db}
 
-	err = p.LoggingSchemas()
+	err = p.loggingSchemas()
 	if err != nil {
 		return nil, err
 	}
 
-	p.tableSchema = "praktikum"
+	p.tableSchema = "postgres"
 	err = p.createSchema(p.tableSchema)
 	if err != nil {
 		return nil, err
@@ -325,7 +326,7 @@ func (p PostgreSQL) withLoggingCreatingTable(tableSchema, tableName string, crea
 	return nil
 }
 
-func (p PostgreSQL) LoggingSchemas() error {
+func (p PostgreSQL) loggingSchemas() error {
 
 	var schemas []string
 
@@ -353,7 +354,7 @@ func (p PostgreSQL) LoggingSchemas() error {
 		return err
 	}
 
-	logger.Log.Debugw("schemas", schemas)
+	logger.Log.Debugw("schemas", "values", strings.Join(schemas, ","))
 	return nil
 
 }
