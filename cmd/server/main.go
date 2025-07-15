@@ -42,6 +42,7 @@ func main() {
 		storage: &MetricsStorage{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
+			mutex:   sync.Mutex{},
 		},
 		db: db,
 	}
@@ -125,6 +126,7 @@ func connectToStore() (*sql.DB, error) {
 	}
 
 	return db, nil
+	w.Header().Set("Content-Type", "text/plain")
 
 }
 
