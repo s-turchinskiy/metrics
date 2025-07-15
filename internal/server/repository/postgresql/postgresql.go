@@ -60,9 +60,6 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 	}
 
 	_, err = p.DB.Exec(sqlStatement, newValue, time.Now(), metricsName)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
 
 	return err
 
@@ -98,6 +95,7 @@ func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, e
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			isExist = false
+			err = nil
 		}
 	}
 
@@ -121,6 +119,7 @@ func (p PostgreSQL) GetCounter(metricsName string) (value int64, isExist bool, e
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			isExist = false
+			err = nil
 		}
 	}
 
