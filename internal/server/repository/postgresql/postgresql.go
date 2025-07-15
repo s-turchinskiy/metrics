@@ -74,7 +74,7 @@ func (p PostgreSQL) ReloadAllCounters(m map[string]int64) error {
 	return nil
 }
 
-func ConnectToStore() (*sql.DB, error) {
+func ConnectToDatabase() (*sql.DB, error) {
 
 	dbSettings := settings.Settings.Database
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
