@@ -17,7 +17,7 @@ type OutputAllMetrics struct {
 	Table  map[string]string
 }
 
-const contentTypeTextHtml = "text/html; charset=utf-8"
+const contentTypeTextHTML = "text/html; charset=utf-8"
 
 var (
 	templateOutputAllMetrics = `<div>{{.Header}}</div><table style="margin-left: 40px">{{range $k, $v:= .Table}}<tr><td>{{$k}}</td><td>{{$v}}</td></tr>{{end}}</table>`
@@ -25,7 +25,7 @@ var (
 
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", contentTypeTextHtml)
+	w.Header().Set("Content-Type", contentTypeTextHTML)
 
 	if r.URL.Path != "/" {
 		logger.Log.Infow("error, Path != \"/\"", "path", r.URL.Path)
@@ -62,7 +62,7 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", contentTypeTextHtml)
+	w.Header().Set("Content-Type", contentTypeTextHTML)
 
 	if r.Method != http.MethodPost {
 		logger.Log.Infow("error, Method != Post", "Method", r.Method)
@@ -161,7 +161,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 	result, err := h.storage.GetTypedMetric(metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
-		w.Header().Set("Content-Type", contentTypeTextHtml)
+		w.Header().Set("Content-Type", contentTypeTextHTML)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
 		return
@@ -182,7 +182,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", contentTypeTextHtml)
+	w.Header().Set("Content-Type", contentTypeTextHTML)
 
 	if r.Method != http.MethodGet {
 		logger.Log.Infow("error, Method != Get", "Method", r.Method)
@@ -219,7 +219,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", contentTypeTextHtml)
+	w.Header().Set("Content-Type", contentTypeTextHTML)
 
 	if r.Method != http.MethodGet {
 		logger.Log.Infow("error, Method != Get", "Method", r.Method)
