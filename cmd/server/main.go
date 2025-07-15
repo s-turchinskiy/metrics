@@ -97,18 +97,20 @@ func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
 func run(h *MetricsHandler) error {
 
 	router := chi.NewRouter()
+	router.Use(gzipMiddleware)
+	router.Use(logger.Logger)
 	router.Route("/update", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(gzipMiddleware(h.UpdateMetricJSON)))
-		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", logger.WithLogging(gzipMiddleware(h.UpdateMetric)))
+		r.Post("/", logger.WithLogging(h.UpdateMetricJSON))
+		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", h.UpdateMetric)
 	})
 	router.Route("/value", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(gzipMiddleware(h.GetTypedMetric)))
-		r.Get("/{MetricsType}/{MetricsName}", logger.WithLogging(gzipMiddleware(h.GetMetric)))
+		r.Post("/", h.GetTypedMetric)
+		r.Get("/{MetricsType}/{MetricsName}", h.GetMetric)
 	})
 	router.Route("/ping", func(r chi.Router) {
-		r.Get("/", logger.WithLogging(gzipMiddleware(h.Ping)))
+		r.Get("/", h.Ping)
 	})
-	router.Get(`/`, logger.WithLogging(gzipMiddleware(h.GetAllMetrics)))
+	router.Get(`/`, h.GetAllMetrics)
 
 	logger.Log.Info("Running server", zap.String("address", settings.Address.String()))
 
@@ -128,8 +130,9 @@ func connectToStore() (*sql.DB, error) {
 
 }
 
-func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func gzipMiddleware(next http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
@@ -152,6 +155,7 @@ func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 			defer cr.Close()
 		}
 
-		h.ServeHTTP(w, r)
-	}
+		next.ServeHTTP(w, r)
+
+	})
 }

@@ -80,3 +80,30 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 	}
 	return logFn
 }
+
+func Logger(next http.Handler) http.Handler {
+	logFn := func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		responseData := &responseData{
+			status: 0,
+			size:   0,
+		}
+		lw := loggingResponseWriter{
+			ResponseWriter: w,
+			responseData:   responseData,
+		}
+		next.ServeHTTP(&lw, r)
+
+		duration := time.Since(start)
+
+		Log.Debugln(
+			"uri", r.RequestURI,
+			"method", r.Method,
+			"status", responseData.status,
+			"duration", duration,
+			"size", responseData.size,
+		)
+	}
+	return http.HandlerFunc(logFn)
+}
