@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"time"
 )
@@ -83,18 +84,25 @@ func (p PostgreSQL) CountCounters() int {
 
 }
 
-func (p PostgreSQL) GetGauge(metricsName string) (float64, bool, error) {
+func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, err error) {
 
 	row := p.DB.QueryRow("SELECT value FROM gauges WHERE metrics_name = $1", metricsName)
-	var value float64
-	err := row.Scan(&value)
+	err = row.Scan(&value)
 
+	isExist = true
+	
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return value, false, nil
+			isExist = false
 		}
 	}
-	return value, true, err
+
+	logger.Log.Debugw("PostgreSQL.GetGauge",
+		"metricsName", metricsName,
+		"isExist", isExist,
+	)
+
+	return value, isExist, err
 
 }
 
