@@ -42,7 +42,7 @@ func main() {
 	metricsHandler := &MetricsHandler{}
 	if settings.Settings.Store == settings.Database {
 
-		p, err := postgresql.InizializatePostgreSQL()
+		p, err := postgresql.InitializePostgreSQL()
 		if err != nil {
 			logger.Log.Debugw("Connect to database error", "error", err.Error())
 			log.Fatal(err)

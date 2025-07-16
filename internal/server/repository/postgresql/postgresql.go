@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
+	_ "github.com/jackc/pgx/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"log"
@@ -244,18 +246,27 @@ func (p PostgreSQL) ReloadAllCounters(data map[string]int64) error {
 	return nil
 }
 
-func InizializatePostgreSQL() (*PostgreSQL, error) {
+func InitializePostgreSQL() (*PostgreSQL, error) {
 
-	dbSettings := settings.Settings.Database
+	driverConfig := stdlib.DriverConfig{
+		ConnConfig: pgx.ConnConfig{
+			PreferSimpleProtocol: true,
+		},
+	}
+	stdlib.RegisterDriverConfig(&driverConfig)
+
+	conn, err := sql.Open("pgx", driverConfig.ConnectionString(settings.Settings.Database.FlagDatabaseDSN))
+
+	/*dbSettings := settings.Settings.Database
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbSettings.Host, dbSettings.Login, dbSettings.Password, dbSettings.DBName)
 
 	db, err := sql.Open("pgx", ps)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
-	p := &PostgreSQL{DB: db}
+	p := &PostgreSQL{DB: conn}
 	p.tableSchema = "postgres"
 
 	p.runCommand("DROP TABLE postgres.gauges IF EXIST")

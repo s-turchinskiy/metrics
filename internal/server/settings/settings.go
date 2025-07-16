@@ -46,10 +46,11 @@ type netAddress struct {
 }
 
 type database struct {
-	Host     string
-	DBName   string
-	Login    string
-	Password string
+	Host            string
+	DBName          string
+	Login           string
+	Password        string
+	FlagDatabaseDSN string
 }
 
 var Settings ProgramSettings
@@ -69,7 +70,7 @@ func (s ProgramSettings) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 	}
 
 	encoder.AddBool("AsynchronousWritingDataToFile", s.AsynchronousWritingDataToFile)
-	
+
 	switch s.Store {
 	case Database:
 		{
@@ -173,6 +174,7 @@ func GetSettings() error {
 		if err != nil {
 			return err
 		}
+		Settings.Database.FlagDatabaseDSN = DatabaseDsn
 	}
 
 	Settings.AsynchronousWritingDataToFile = Settings.StoreInterval != 0
