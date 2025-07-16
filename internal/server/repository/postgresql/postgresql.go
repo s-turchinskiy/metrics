@@ -21,7 +21,7 @@ type PostgreSQL struct {
 	tableSchema string
 }
 
-func (p PostgreSQL) Ping(ctx context.Context) ([]byte, error) {
+func (p *PostgreSQL) Ping(ctx context.Context) ([]byte, error) {
 
 	err := p.db.Ping()
 	if err != nil {
@@ -32,7 +32,7 @@ func (p PostgreSQL) Ping(ctx context.Context) ([]byte, error) {
 
 }
 
-func (p PostgreSQL) UpdateGauge(ctx context.Context, metricsName string, newValue float64) error {
+func (p *PostgreSQL) UpdateGauge(ctx context.Context, metricsName string, newValue float64) error {
 
 	var sqlStatement string
 	_, exist, err := p.GetGauge(ctx, metricsName)
@@ -54,7 +54,7 @@ func (p PostgreSQL) UpdateGauge(ctx context.Context, metricsName string, newValu
 
 }
 
-func (p PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newValue int64) error {
+func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newValue int64) error {
 
 	err := p.loggingData(
 		"view new tables",
@@ -92,7 +92,7 @@ func (p PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newVa
 
 }
 
-func (p PostgreSQL) CountGauges(ctx context.Context) int {
+func (p *PostgreSQL) CountGauges(ctx context.Context) int {
 
 	row := p.db.QueryRow("SELECT COUNT(*) FROM postgres.gauges")
 	var count int
@@ -102,7 +102,7 @@ func (p PostgreSQL) CountGauges(ctx context.Context) int {
 
 }
 
-func (p PostgreSQL) CountCounters(ctx context.Context) int {
+func (p *PostgreSQL) CountCounters(ctx context.Context) int {
 
 	row := p.db.QueryRow("SELECT COUNT(*) FROM postgres.counters")
 	var count int
@@ -112,7 +112,7 @@ func (p PostgreSQL) CountCounters(ctx context.Context) int {
 
 }
 
-func (p PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value float64, isExist bool, err error) {
+func (p *PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value float64, isExist bool, err error) {
 
 	row := p.db.QueryRow(fmt.Sprintf("SELECT value FROM %s.gauges WHERE metrics_name = $1", p.tableSchema), metricsName)
 	err = row.Scan(&value)
@@ -138,7 +138,7 @@ func (p PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value flo
 
 }
 
-func (p PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value int64, isExist bool, err error) {
+func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value int64, isExist bool, err error) {
 
 	row := p.db.QueryRow("SELECT value FROM postgres.counters WHERE metrics_name = $1", metricsName)
 	err = row.Scan(&value)
@@ -162,7 +162,7 @@ func (p PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value i
 
 }
 
-func (p PostgreSQL) GetAllGauges(ctx context.Context) (map[string]float64, error) {
+func (p *PostgreSQL) GetAllGauges(ctx context.Context) (map[string]float64, error) {
 
 	result := make(map[string]float64)
 
@@ -192,7 +192,7 @@ func (p PostgreSQL) GetAllGauges(ctx context.Context) (map[string]float64, error
 
 }
 
-func (p PostgreSQL) GetAllCounters(ctx context.Context) (map[string]int64, error) {
+func (p *PostgreSQL) GetAllCounters(ctx context.Context) (map[string]int64, error) {
 
 	result := make(map[string]int64)
 
@@ -222,7 +222,7 @@ func (p PostgreSQL) GetAllCounters(ctx context.Context) (map[string]int64, error
 
 }
 
-func (p PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float64) error {
+func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float64) error {
 
 	for metricsName, newValue := range data {
 		err := p.UpdateGauge(ctx, metricsName, newValue)
@@ -235,7 +235,7 @@ func (p PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float64
 
 }
 
-func (p PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int64) error {
+func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int64) error {
 
 	for metricsName, newValue := range data {
 		err := p.UpdateCounter(ctx, metricsName, newValue)
@@ -307,12 +307,12 @@ func InitializePostgreSQL(ctx context.Context) (service.Repository, error) {
 
 }
 
-func (p PostgreSQL) createSchema(tableSchema string) error {
+func (p *PostgreSQL) createSchema(tableSchema string) error {
 	_, err := p.db.Exec(fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, tableSchema))
 	return err
 }
 
-func (p PostgreSQL) createTableGauges() error {
+func (p *PostgreSQL) createTableGauges() error {
 	_, err := p.db.Exec(fmt.Sprintf(
 		`CREATE TABLE IF NOT EXISTS %s.gauges (
     id SERIAL PRIMARY KEY,
@@ -323,7 +323,7 @@ func (p PostgreSQL) createTableGauges() error {
 	return err
 }
 
-func (p PostgreSQL) createTableCounters() error {
+func (p *PostgreSQL) createTableCounters() error {
 	_, err := p.db.Exec(fmt.Sprintf(
 		`CREATE TABLE IF NOT EXISTS %s.counters (
     id SERIAL PRIMARY KEY,
@@ -334,7 +334,7 @@ func (p PostgreSQL) createTableCounters() error {
 	return err
 }
 
-func (p PostgreSQL) tableExist(tableName string) bool {
+func (p *PostgreSQL) tableExist(tableName string) bool {
 	row := p.db.QueryRow(fmt.Sprintf(`select exists (select *
                from information_schema.tables
                where table_name = '%s' 
@@ -349,7 +349,7 @@ func (p PostgreSQL) tableExist(tableName string) bool {
 	return isExist
 }
 
-func (p PostgreSQL) withLoggingCreatingTable(tableName string, createTable func() error) error {
+func (p *PostgreSQL) withLoggingCreatingTable(tableName string, createTable func() error) error {
 
 	existBefore := p.tableExist(tableName)
 	err := createTable()
@@ -364,7 +364,7 @@ func (p PostgreSQL) withLoggingCreatingTable(tableName string, createTable func(
 	return nil
 }
 
-func (p PostgreSQL) loggingData(title, query, parameter string) error {
+func (p *PostgreSQL) loggingData(title, query, parameter string) error {
 
 	var data []string
 
@@ -404,7 +404,7 @@ func (p PostgreSQL) loggingData(title, query, parameter string) error {
 
 }
 
-func (p PostgreSQL) runCommand(command string) error {
+func (p *PostgreSQL) runCommand(command string) error {
 	_, err := p.db.Exec(command)
 	return err
 }
