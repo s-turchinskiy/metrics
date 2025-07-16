@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/stdlib"
-	_ "github.com/jackc/pgx/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"log"
@@ -257,6 +256,10 @@ func InitializePostgreSQL() (*PostgreSQL, error) {
 
 	conn, err := sql.Open("pgx", driverConfig.ConnectionString(settings.Settings.Database.FlagDatabaseDSN))
 
+	err = conn.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
 	/*dbSettings := settings.Settings.Database
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbSettings.Host, dbSettings.Login, dbSettings.Password, dbSettings.DBName)
