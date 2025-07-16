@@ -5,8 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"log"
@@ -15,18 +14,18 @@ import (
 )
 
 type PostgreSQL struct {
-	DB          *sql.DB
+	db          *sql.DB
 	tableSchema string
 }
 
 func (p PostgreSQL) Ping() ([]byte, error) {
 
-	err := p.DB.Ping()
+	err := p.db.Ping()
 	if err != nil {
 		return nil, err
 	}
 
-	return json.MarshalIndent(p.DB.Stats(), "", "   ")
+	return json.MarshalIndent(p.db.Stats(), "", "   ")
 
 }
 
@@ -44,7 +43,7 @@ func (p PostgreSQL) UpdateGauge(metricsName string, newValue float64) error {
 		sqlStatement = `INSERT INTO postgres.gauges (value, date, metrics_name) VALUES ($1, $2, $3)`
 	}
 
-	_, err = p.DB.Exec(sqlStatement, newValue, time.Now(), metricsName)
+	_, err = p.db.Exec(sqlStatement, newValue, time.Now(), metricsName)
 	if err != nil {
 		err = fmt.Errorf("PostgreSQL.UpdateGauge error in p.DB.Exec, %w", err)
 	}
@@ -84,7 +83,7 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 		"value", newValue,
 	)
 
-	_, err = p.DB.Exec(sqlStatement, newValue, time.Now(), metricsName)
+	_, err = p.db.Exec(sqlStatement, newValue, time.Now(), metricsName)
 
 	return err
 
@@ -92,7 +91,7 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 
 func (p PostgreSQL) CountGauges() int {
 
-	row := p.DB.QueryRow("SELECT COUNT(*) FROM postgres.gauges")
+	row := p.db.QueryRow("SELECT COUNT(*) FROM postgres.gauges")
 	var count int
 	_ = row.Scan(&count)
 
@@ -102,7 +101,7 @@ func (p PostgreSQL) CountGauges() int {
 
 func (p PostgreSQL) CountCounters() int {
 
-	row := p.DB.QueryRow("SELECT COUNT(*) FROM postgres.counters")
+	row := p.db.QueryRow("SELECT COUNT(*) FROM postgres.counters")
 	var count int
 	_ = row.Scan(&count)
 
@@ -112,7 +111,7 @@ func (p PostgreSQL) CountCounters() int {
 
 func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, err error) {
 
-	row := p.DB.QueryRow(fmt.Sprintf("SELECT value FROM %s.gauges WHERE metrics_name = $1", p.tableSchema), metricsName)
+	row := p.db.QueryRow(fmt.Sprintf("SELECT value FROM %s.gauges WHERE metrics_name = $1", p.tableSchema), metricsName)
 	err = row.Scan(&value)
 
 	isExist = true
@@ -138,7 +137,7 @@ func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, e
 
 func (p PostgreSQL) GetCounter(metricsName string) (value int64, isExist bool, err error) {
 
-	row := p.DB.QueryRow("SELECT value FROM postgres.counters WHERE metrics_name = $1", metricsName)
+	row := p.db.QueryRow("SELECT value FROM postgres.counters WHERE metrics_name = $1", metricsName)
 	err = row.Scan(&value)
 
 	isExist = true
@@ -164,7 +163,7 @@ func (p PostgreSQL) GetAllGauges() (map[string]float64, error) {
 
 	result := make(map[string]float64)
 
-	rows, err := p.DB.Query("SELECT metrics_name, value from postgres.gauges")
+	rows, err := p.db.Query("SELECT metrics_name, value from postgres.gauges")
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +193,7 @@ func (p PostgreSQL) GetAllCounters() (map[string]int64, error) {
 
 	result := make(map[string]int64)
 
-	rows, err := p.DB.Query("SELECT metrics_name, value from postgres.counters")
+	rows, err := p.db.Query("SELECT metrics_name, value from postgres.counters")
 	if err != nil {
 		return nil, err
 	}
@@ -247,33 +246,20 @@ func (p PostgreSQL) ReloadAllCounters(data map[string]int64) error {
 
 func InitializePostgreSQL() (*PostgreSQL, error) {
 
-	driverConfig := stdlib.DriverConfig{
-		ConnConfig: pgx.ConnConfig{
-			PreferSimpleProtocol: true,
-		},
-	}
-	stdlib.RegisterDriverConfig(&driverConfig)
-
-	conn, err := sql.Open("pgx", driverConfig.ConnectionString(settings.Settings.Database.FlagDatabaseDSN))
-
-	err = conn.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
-	/*dbSettings := settings.Settings.Database
+	dbSettings := settings.Settings.Database
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbSettings.Host, dbSettings.Login, dbSettings.Password, dbSettings.DBName)
 
 	db, err := sql.Open("pgx", ps)
 	if err != nil {
 		return nil, err
-	}*/
+	}
 
-	p := &PostgreSQL{DB: conn}
+	p := &PostgreSQL{db: db}
 	p.tableSchema = "postgres"
 
 	p.runCommand("DROP TABLE postgres.gauges IF EXIST")
-	p.runCommand("DROP TABLE postgres.counters IF EXIST")
+	//p.runCommand("DROP TABLE postgres.counters IF EXIST")
 
 	err = p.loggingData(
 		"schemas",
@@ -319,12 +305,12 @@ func InitializePostgreSQL() (*PostgreSQL, error) {
 }
 
 func (p PostgreSQL) createSchema(tableSchema string) error {
-	_, err := p.DB.Exec(fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, tableSchema))
+	_, err := p.db.Exec(fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, tableSchema))
 	return err
 }
 
 func (p PostgreSQL) createTableGauges() error {
-	_, err := p.DB.Exec(fmt.Sprintf(
+	_, err := p.db.Exec(fmt.Sprintf(
 		`CREATE TABLE IF NOT EXISTS %s.gauges (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
@@ -335,7 +321,7 @@ func (p PostgreSQL) createTableGauges() error {
 }
 
 func (p PostgreSQL) createTableCounters() error {
-	_, err := p.DB.Exec(fmt.Sprintf(
+	_, err := p.db.Exec(fmt.Sprintf(
 		`CREATE TABLE IF NOT EXISTS %s.counters (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
@@ -346,7 +332,7 @@ func (p PostgreSQL) createTableCounters() error {
 }
 
 func (p PostgreSQL) tableExist(tableName string) bool {
-	row := p.DB.QueryRow(fmt.Sprintf(`select exists (select *
+	row := p.db.QueryRow(fmt.Sprintf(`select exists (select *
                from information_schema.tables
                where table_name = '%s' 
                  and table_schema = '%s') as table_exists;`, tableName, p.tableSchema))
@@ -383,10 +369,10 @@ func (p PostgreSQL) loggingData(title, query, parameter string) error {
 	var err error
 
 	if parameter == "" {
-		rows, err = p.DB.Query(query)
+		rows, err = p.db.Query(query)
 
 	} else {
-		rows, err = p.DB.Query(query, parameter)
+		rows, err = p.db.Query(query, parameter)
 	}
 
 	if err != nil {
@@ -416,6 +402,6 @@ func (p PostgreSQL) loggingData(title, query, parameter string) error {
 }
 
 func (p PostgreSQL) runCommand(command string) error {
-	_, err := p.DB.Exec(command)
+	_, err := p.db.Exec(command)
 	return err
 }
