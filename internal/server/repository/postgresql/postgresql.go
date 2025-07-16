@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
@@ -16,7 +17,7 @@ import (
 )
 
 type PostgreSQL struct {
-	db          *sql.DB
+	db          *sqlx.DB
 	tableSchema string
 }
 
@@ -246,14 +247,14 @@ func (p PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int64
 	return nil
 }
 
-func InitializePostgreSQL() (service.Repository, error) {
+func InitializePostgreSQL(ctx context.Context) (service.Repository, error) {
 
-	dbSettings := settings.Settings.Database
-	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbSettings.Host, dbSettings.Login, dbSettings.Password, dbSettings.DBName)
-
-	db, err := sql.Open("pgx", ps)
+	db, err := sqlx.Open("pgx", settings.Settings.Database.String())
 	if err != nil {
+		return nil, err
+	}
+
+	if err = db.PingContext(ctx); err != nil {
 		return nil, err
 	}
 
