@@ -17,6 +17,11 @@ import (
 	"time"
 )
 
+const MaxConns = 10
+const MinConns = 2
+const MaxConnLifetime = time.Hour
+const MaxConnIdleTime = time.Minute * 30
+
 type PostgreSQL struct {
 	db          *pgxpool.Pool
 	tableSchema string
@@ -264,6 +269,12 @@ func InitializePostgreSQL(ctx context.Context) (service.Repository, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	config.MaxConns = MaxConns
+	config.MinConns = MinConns
+	config.MaxConnLifetime = MaxConnLifetime
+	config.MaxConnIdleTime = MaxConnIdleTime
+
 	pool, _ := pgxpool.NewWithConfig(ctx, config)
 
 	p := &PostgreSQL{db: pool}
