@@ -58,12 +58,35 @@ func (s ProgramSettings) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
 	err := encoder.AddObject("Address", &s.Address)
 	if err != nil {
-		return nil
+		return err
 	}
 	encoder.AddInt("StoreInterval", s.StoreInterval)
 	encoder.AddString("FileStoragePath", s.FileStoragePath)
 	encoder.AddBool("Restore", s.Restore)
 	err = encoder.AddObject("Database", &s.Database)
+	if err != nil {
+		return err
+	}
+
+	encoder.AddBool("AsynchronousWritingDataToFile", s.AsynchronousWritingDataToFile)
+	
+	switch s.Store {
+	case Database:
+		{
+			encoder.AddString("Store", "Database")
+		}
+	case File:
+		{
+			encoder.AddString("Store", "File")
+		}
+	case Memory:
+		{
+			encoder.AddString("Store", "Memory")
+		}
+	default:
+		panic("unhandled default case")
+	}
+
 	return err
 }
 

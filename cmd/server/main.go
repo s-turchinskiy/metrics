@@ -52,7 +52,7 @@ func main() {
 			Repository: p,
 		}
 
-		defer p.DB.Close()
+		//defer p.DB.Close()
 
 	} else {
 
