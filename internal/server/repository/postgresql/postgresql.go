@@ -1,12 +1,14 @@
 package postgresql
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"log"
 	"strings"
@@ -18,7 +20,7 @@ type PostgreSQL struct {
 	tableSchema string
 }
 
-func (p PostgreSQL) Ping() ([]byte, error) {
+func (p PostgreSQL) Ping(ctx context.Context) ([]byte, error) {
 
 	err := p.db.Ping()
 	if err != nil {
@@ -29,10 +31,10 @@ func (p PostgreSQL) Ping() ([]byte, error) {
 
 }
 
-func (p PostgreSQL) UpdateGauge(metricsName string, newValue float64) error {
+func (p PostgreSQL) UpdateGauge(ctx context.Context, metricsName string, newValue float64) error {
 
 	var sqlStatement string
-	_, exist, err := p.GetGauge(metricsName)
+	_, exist, err := p.GetGauge(ctx, metricsName)
 	if err != nil {
 		return err
 	}
@@ -51,7 +53,7 @@ func (p PostgreSQL) UpdateGauge(metricsName string, newValue float64) error {
 
 }
 
-func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
+func (p PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newValue int64) error {
 
 	err := p.loggingData(
 		"view new tables",
@@ -67,7 +69,7 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 	}
 
 	var sqlStatement string
-	_, exist, err := p.GetCounter(metricsName)
+	_, exist, err := p.GetCounter(ctx, metricsName)
 	if err != nil {
 		return err
 	}
@@ -89,7 +91,7 @@ func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 
 }
 
-func (p PostgreSQL) CountGauges() int {
+func (p PostgreSQL) CountGauges(ctx context.Context) int {
 
 	row := p.db.QueryRow("SELECT COUNT(*) FROM postgres.gauges")
 	var count int
@@ -99,7 +101,7 @@ func (p PostgreSQL) CountGauges() int {
 
 }
 
-func (p PostgreSQL) CountCounters() int {
+func (p PostgreSQL) CountCounters(ctx context.Context) int {
 
 	row := p.db.QueryRow("SELECT COUNT(*) FROM postgres.counters")
 	var count int
@@ -109,7 +111,7 @@ func (p PostgreSQL) CountCounters() int {
 
 }
 
-func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, err error) {
+func (p PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value float64, isExist bool, err error) {
 
 	row := p.db.QueryRow(fmt.Sprintf("SELECT value FROM %s.gauges WHERE metrics_name = $1", p.tableSchema), metricsName)
 	err = row.Scan(&value)
@@ -135,7 +137,7 @@ func (p PostgreSQL) GetGauge(metricsName string) (value float64, isExist bool, e
 
 }
 
-func (p PostgreSQL) GetCounter(metricsName string) (value int64, isExist bool, err error) {
+func (p PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value int64, isExist bool, err error) {
 
 	row := p.db.QueryRow("SELECT value FROM postgres.counters WHERE metrics_name = $1", metricsName)
 	err = row.Scan(&value)
@@ -159,7 +161,7 @@ func (p PostgreSQL) GetCounter(metricsName string) (value int64, isExist bool, e
 
 }
 
-func (p PostgreSQL) GetAllGauges() (map[string]float64, error) {
+func (p PostgreSQL) GetAllGauges(ctx context.Context) (map[string]float64, error) {
 
 	result := make(map[string]float64)
 
@@ -189,7 +191,7 @@ func (p PostgreSQL) GetAllGauges() (map[string]float64, error) {
 
 }
 
-func (p PostgreSQL) GetAllCounters() (map[string]int64, error) {
+func (p PostgreSQL) GetAllCounters(ctx context.Context) (map[string]int64, error) {
 
 	result := make(map[string]int64)
 
@@ -219,10 +221,10 @@ func (p PostgreSQL) GetAllCounters() (map[string]int64, error) {
 
 }
 
-func (p PostgreSQL) ReloadAllGauges(data map[string]float64) error {
+func (p PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float64) error {
 
 	for metricsName, newValue := range data {
-		err := p.UpdateGauge(metricsName, newValue)
+		err := p.UpdateGauge(ctx, metricsName, newValue)
 		if err != nil {
 			return err
 		}
@@ -232,10 +234,10 @@ func (p PostgreSQL) ReloadAllGauges(data map[string]float64) error {
 
 }
 
-func (p PostgreSQL) ReloadAllCounters(data map[string]int64) error {
+func (p PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int64) error {
 
 	for metricsName, newValue := range data {
-		err := p.UpdateCounter(metricsName, newValue)
+		err := p.UpdateCounter(ctx, metricsName, newValue)
 		if err != nil {
 			return err
 		}
@@ -244,7 +246,7 @@ func (p PostgreSQL) ReloadAllCounters(data map[string]int64) error {
 	return nil
 }
 
-func InitializePostgreSQL() (*PostgreSQL, error) {
+func InitializePostgreSQL() (service.Repository, error) {
 
 	dbSettings := settings.Settings.Database
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",

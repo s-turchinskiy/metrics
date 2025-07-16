@@ -41,7 +41,7 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.storage.GetAllMetrics()
+	result, err := h.storage.GetAllMetrics(r.Context())
 	if err != nil {
 		logger.Log.Info("error getting data", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -93,7 +93,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		MetricsValue: pathSlice[2], //r.PathValue("MetricsValue"),
 	}
 
-	err := h.storage.UpdateMetric(metric)
+	err := h.storage.UpdateMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -119,7 +119,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	}
 
 	metric := models.StorageMetrics{Name: req.ID, MType: req.MType, Delta: req.Delta, Value: req.Value}
-	result, err := h.storage.UpdateTypedMetric(metric)
+	result, err := h.storage.UpdateTypedMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Infoln("error", err.Error(), "metric", metric)
 		w.Header().Set("Content-Type", "text/plain")
@@ -139,7 +139,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	}
 
 	if !settings.Settings.AsynchronousWritingDataToFile {
-		err := h.storage.SaveMetricsToFile()
+		err := h.storage.SaveMetricsToFile(r.Context())
 		if err != nil {
 			logger.Log.Info("error SaveMetricsToFile", zap.Error(err))
 			return
@@ -166,7 +166,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 	metric := models.StorageMetrics{Name: req.ID, MType: req.MType, Delta: req.Delta, Value: req.Value}
 
-	result, err := h.storage.GetTypedMetric(metric)
+	result, err := h.storage.GetTypedMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
 		w.Header().Set("Content-Type", contentTypeTextHTML)
@@ -214,7 +214,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 		MetricsName: pathSlice[1],
 	}
 
-	value, err := h.storage.GetMetric(metric)
+	value, err := h.storage.GetMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
 		w.WriteHeader(http.StatusNotFound)
@@ -236,7 +236,7 @@ func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.storage.Ping()
+	data, err := h.storage.Ping(r.Context())
 
 	if err != nil {
 		logger.Log.Infoln(err.Error())

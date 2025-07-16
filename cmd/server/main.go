@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
@@ -29,6 +30,8 @@ func init() {
 
 func main() {
 
+	ctx := context.Background()
+
 	err := godotenv.Load("./cmd/server/.env")
 	if err != nil {
 		logger.Log.Debugw("Error loading .env file", "error", err.Error())
@@ -52,8 +55,6 @@ func main() {
 			Repository: p,
 		}
 
-		//defer p.DB.Close()
-
 	} else {
 
 		metricsHandler.storage = &service.MetricsStorage{
@@ -66,7 +67,7 @@ func main() {
 	}
 
 	if settings.Settings.Restore {
-		err := metricsHandler.storage.LoadMetricsFromFile()
+		err := metricsHandler.storage.LoadMetricsFromFile(ctx)
 		if err != nil {
 			logger.Log.Errorw("LoadMetricsFromFile error", "error", err.Error())
 			log.Fatal(err)
@@ -85,15 +86,15 @@ func main() {
 		}
 	}()
 
-	go saveMetricsToFilePeriodically(metricsHandler, errors)
+	go saveMetricsToFilePeriodically(ctx, metricsHandler, errors)
 
 	err = <-errors
-	metricsHandler.storage.SaveMetricsToFile()
+	metricsHandler.storage.SaveMetricsToFile(ctx)
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	log.Fatal(err)
 }
 
-func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
+func saveMetricsToFilePeriodically(ctx context.Context, h *MetricsHandler, errors chan error) {
 
 	if !settings.Settings.AsynchronousWritingDataToFile {
 		return
@@ -102,7 +103,7 @@ func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
 	ticker := time.NewTicker(time.Duration(settings.Settings.StoreInterval) * time.Second)
 	for range ticker.C {
 
-		err := h.storage.SaveMetricsToFile()
+		err := h.storage.SaveMetricsToFile(ctx)
 		if err != nil {
 			logger.Log.Infoln("error", err.Error())
 			errors <- err

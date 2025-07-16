@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,14 +15,14 @@ import (
 )
 
 type MetricsUpdater interface {
-	UpdateMetric(metric models.UntypedMetric) error
-	UpdateTypedMetric(metric models.StorageMetrics) (*models.StorageMetrics, error)
-	GetMetric(metric models.UntypedMetric) (string, error)
-	GetTypedMetric(metric models.StorageMetrics) (*models.StorageMetrics, error)
-	GetAllMetrics() (map[string]map[string]string, error)
-	SaveMetricsToFile() error
-	LoadMetricsFromFile() error
-	Ping() ([]byte, error)
+	UpdateMetric(ctx context.Context, metric models.UntypedMetric) error
+	UpdateTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error)
+	GetMetric(ctx context.Context, metric models.UntypedMetric) (string, error)
+	GetTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error)
+	GetAllMetrics(ctx context.Context) (map[string]map[string]string, error)
+	SaveMetricsToFile(ctx context.Context) error
+	LoadMetricsFromFile(ctx context.Context) error
+	Ping(ctx context.Context) ([]byte, error)
 }
 
 type MetricsStorage struct {
@@ -31,17 +32,17 @@ type MetricsStorage struct {
 }
 
 type Repository interface {
-	UpdateGauge(metricsName string, newValue float64) error
-	UpdateCounter(metricsName string, newValue int64) error
-	CountGauges() int
-	CountCounters() int
-	GetGauge(metricsName string) (float64, bool, error)
-	GetCounter(metricsName string) (int64, bool, error)
-	GetAllGauges() (map[string]float64, error)
-	GetAllCounters() (map[string]int64, error)
-	ReloadAllGauges(map[string]float64) error
-	ReloadAllCounters(map[string]int64) error
-	Ping() ([]byte, error)
+	UpdateGauge(ctx context.Context, metricsName string, newValue float64) error
+	UpdateCounter(ctx context.Context, metricsName string, newValue int64) error
+	CountGauges(ctx context.Context) int
+	CountCounters(ctx context.Context) int
+	GetGauge(ctx context.Context, metricsName string) (float64, bool, error)
+	GetCounter(ctx context.Context, metricsName string) (int64, bool, error)
+	GetAllGauges(ctx context.Context) (map[string]float64, error)
+	GetAllCounters(ctx context.Context) (map[string]int64, error)
+	ReloadAllGauges(context.Context, map[string]float64) error
+	ReloadAllCounters(context.Context, map[string]int64) error
+	Ping(ctx context.Context) ([]byte, error)
 }
 
 type MetricsFileStorage struct {
@@ -50,14 +51,14 @@ type MetricsFileStorage struct {
 	Date    string
 }
 
-func (s *MetricsStorage) GetAllMetrics() (map[string]map[string]string, error) {
+func (s *MetricsStorage) GetAllMetrics(ctx context.Context) (map[string]map[string]string, error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	result := make(map[string]map[string]string, 2)
 
-	gauges, err := s.Repository.GetAllGauges()
+	gauges, err := s.Repository.GetAllGauges(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +69,7 @@ func (s *MetricsStorage) GetAllMetrics() (map[string]map[string]string, error) {
 	}
 	result["Gauge"] = resultGauges
 
-	counters, err := s.Repository.GetAllCounters()
+	counters, err := s.Repository.GetAllCounters(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +82,7 @@ func (s *MetricsStorage) GetAllMetrics() (map[string]map[string]string, error) {
 	return result, nil
 }
 
-func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (*models.StorageMetrics, error) {
+func (s *MetricsStorage) UpdateTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -95,7 +96,7 @@ func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (*model
 		}
 
 		newValue := *metric.Value
-		err := s.Repository.UpdateGauge(metric.Name, newValue)
+		err := s.Repository.UpdateGauge(ctx, metric.Name, newValue)
 		if err != nil {
 			return nil, err
 		}
@@ -105,14 +106,14 @@ func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (*model
 		if metric.Delta == nil {
 			return &result, fmt.Errorf("delta is not defined")
 		}
-		currentValue, exist, err := s.Repository.GetCounter(metric.Name)
+		currentValue, exist, err := s.Repository.GetCounter(ctx, metric.Name)
 		if err != nil {
 			return nil, err
 		}
 
 		if !exist {
 			newValue := *metric.Delta
-			err := s.Repository.UpdateCounter(metric.Name, newValue)
+			err := s.Repository.UpdateCounter(ctx, metric.Name, newValue)
 			if err != nil {
 				return nil, err
 			}
@@ -121,7 +122,7 @@ func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (*model
 		}
 
 		newValue := currentValue + *metric.Delta
-		err = s.Repository.UpdateCounter(metric.Name, newValue)
+		err = s.Repository.UpdateCounter(ctx, metric.Name, newValue)
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +135,7 @@ func (s *MetricsStorage) UpdateTypedMetric(metric models.StorageMetrics) (*model
 	return &result, nil
 
 }
-func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
+func (s *MetricsStorage) UpdateMetric(ctx context.Context, metric models.UntypedMetric) error {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -147,7 +148,7 @@ func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 			return fmt.Errorf("MetricsValue = %s, error: "+err.Error(), metric.MetricsValue)
 		}
 
-		err = s.Repository.UpdateGauge(metric.MetricsName, value)
+		err = s.Repository.UpdateGauge(ctx, metric.MetricsName, value)
 		if err != nil {
 			return err
 		}
@@ -159,17 +160,17 @@ func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 			return err
 		}
 
-		currentValue, exist, err := s.Repository.GetCounter(metric.MetricsName)
+		currentValue, exist, err := s.Repository.GetCounter(ctx, metric.MetricsName)
 		if err != nil {
 			return err
 		}
 
 		if !exist {
-			err = s.Repository.UpdateCounter(metric.MetricsName, value)
+			err = s.Repository.UpdateCounter(ctx, metric.MetricsName, value)
 			return err
 		}
 
-		err = s.Repository.UpdateCounter(metric.MetricsName, currentValue+value)
+		err = s.Repository.UpdateCounter(ctx, metric.MetricsName, currentValue+value)
 		return err
 
 	default:
@@ -179,7 +180,7 @@ func (s *MetricsStorage) UpdateMetric(metric models.UntypedMetric) error {
 	return nil
 }
 
-func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (*models.StorageMetrics, error) {
+func (s *MetricsStorage) GetTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -189,7 +190,7 @@ func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (*models.S
 	switch metricsType := metric.MType; metricsType {
 	case "gauge":
 
-		value, exist, err := s.Repository.GetGauge(metric.Name)
+		value, exist, err := s.Repository.GetGauge(ctx, metric.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +206,7 @@ func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (*models.S
 
 	case "counter":
 
-		value, exist, err := s.Repository.GetCounter(metric.Name)
+		value, exist, err := s.Repository.GetCounter(ctx, metric.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +225,7 @@ func (s *MetricsStorage) GetTypedMetric(metric models.StorageMetrics) (*models.S
 	}
 }
 
-func (s *MetricsStorage) GetMetric(metric models.UntypedMetric) (string, error) {
+func (s *MetricsStorage) GetMetric(ctx context.Context, metric models.UntypedMetric) (string, error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -232,7 +233,7 @@ func (s *MetricsStorage) GetMetric(metric models.UntypedMetric) (string, error) 
 	switch metricsType := metric.MetricsType; metricsType {
 	case "gauge":
 
-		value, exist, err := s.Repository.GetGauge(metric.MetricsName)
+		value, exist, err := s.Repository.GetGauge(ctx, metric.MetricsName)
 		if err != nil {
 			return "", err
 		}
@@ -244,7 +245,7 @@ func (s *MetricsStorage) GetMetric(metric models.UntypedMetric) (string, error) 
 		return strconv.FormatFloat(value, 'f', -1, 64), nil
 	case "counter":
 
-		value, exist, err := s.Repository.GetCounter(metric.MetricsName)
+		value, exist, err := s.Repository.GetCounter(ctx, metric.MetricsName)
 		if err != nil {
 			return "", err
 		}
@@ -260,22 +261,22 @@ func (s *MetricsStorage) GetMetric(metric models.UntypedMetric) (string, error) 
 	}
 }
 
-func (s *MetricsStorage) SaveMetricsToFile() error {
+func (s *MetricsStorage) SaveMetricsToFile(ctx context.Context) error {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if s.Repository.CountGauges() == 0 && s.Repository.CountCounters() == 0 {
+	if s.Repository.CountGauges(ctx) == 0 && s.Repository.CountCounters(ctx) == 0 {
 		logger.Log.Debug("SaveMetricsToFile, no data available")
 		return nil
 	}
 
-	gauges, err := s.Repository.GetAllGauges()
+	gauges, err := s.Repository.GetAllGauges(ctx)
 	if err != nil {
 		return err
 	}
 
-	counters, err := s.Repository.GetAllCounters()
+	counters, err := s.Repository.GetAllCounters(ctx)
 	if err != nil {
 		return err
 	}
@@ -302,7 +303,7 @@ func (s *MetricsStorage) SaveMetricsToFile() error {
 
 }
 
-func (s *MetricsStorage) LoadMetricsFromFile() error {
+func (s *MetricsStorage) LoadMetricsFromFile(ctx context.Context) error {
 
 	metricsForFile := &MetricsFileStorage{}
 
@@ -327,11 +328,11 @@ func (s *MetricsStorage) LoadMetricsFromFile() error {
 	}
 
 	s.mutex.Lock()
-	err = s.Repository.ReloadAllGauges(metricsForFile.Gauge)
+	err = s.Repository.ReloadAllGauges(ctx, metricsForFile.Gauge)
 	if err != nil {
 		return err
 	}
-	err = s.Repository.ReloadAllCounters(metricsForFile.Counter)
+	err = s.Repository.ReloadAllCounters(ctx, metricsForFile.Counter)
 	if err != nil {
 		return err
 	}
@@ -343,9 +344,9 @@ func (s *MetricsStorage) LoadMetricsFromFile() error {
 
 }
 
-func (s *MetricsStorage) Ping() ([]byte, error) {
+func (s *MetricsStorage) Ping(ctx context.Context) ([]byte, error) {
 
-	return s.Repository.Ping()
+	return s.Repository.Ping(ctx)
 
 }
 
