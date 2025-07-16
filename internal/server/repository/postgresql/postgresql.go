@@ -53,6 +53,11 @@ func (p PostgreSQL) UpdateGauge(metricsName string, newValue float64) error {
 
 func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 
+	err := p.withLoggingCreatingTable("counters", p.createTableCounters)
+	if err != nil {
+		return err
+	}
+
 	var sqlStatement string
 	_, exist, err := p.GetCounter(metricsName)
 	if err != nil {
@@ -299,7 +304,7 @@ func (p PostgreSQL) createTableGauges() error {
 
 func (p PostgreSQL) createTableCounters() error {
 	_, err := p.DB.Exec(fmt.Sprintf(
-		`CREATE TABLE IF NOT EXISTS %s.counterstest (
+		`CREATE TABLE IF NOT EXISTS %s.counters (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL,
     value INT,
