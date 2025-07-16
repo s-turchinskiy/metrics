@@ -258,6 +258,9 @@ func InizializatePostgreSQL() (*PostgreSQL, error) {
 	p := &PostgreSQL{DB: db}
 	p.tableSchema = "postgres"
 
+	p.runCommand("DROP TABLE postgres.gauges IF EXIST")
+	p.runCommand("DROP TABLE postgres.counters IF EXIST")
+
 	err = p.loggingData(
 		"schemas",
 		"SELECT schema_name FROM information_schema.schemata WHERE catalog_name = $1;",
@@ -396,4 +399,9 @@ func (p PostgreSQL) loggingData(title, query, parameter string) error {
 	logger.Log.Debugw(title, "values", strings.Join(data, ","))
 	return nil
 
+}
+
+func (p PostgreSQL) runCommand(command string) error {
+	_, err := p.DB.Exec(command)
+	return err
 }
