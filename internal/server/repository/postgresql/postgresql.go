@@ -53,7 +53,15 @@ func (p PostgreSQL) UpdateGauge(metricsName string, newValue float64) error {
 
 func (p PostgreSQL) UpdateCounter(metricsName string, newValue int64) error {
 
-	err := p.withLoggingCreatingTable("counters", p.createTableCounters)
+	err := p.loggingData(
+		"view new tables",
+		"SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')",
+		"")
+	if err != nil {
+		return err
+	}
+
+	err = p.withLoggingCreatingTable("counters", p.createTableCounters)
 	if err != nil {
 		return err
 	}
@@ -262,7 +270,14 @@ func InizializatePostgreSQL() (*PostgreSQL, error) {
 		"tables",
 		"SELECT table_name FROM information_schema.tables WHERE table_schema = $1",
 		p.tableSchema)
+	if err != nil {
+		return nil, err
+	}
 
+	err = p.loggingData(
+		"view new tables",
+		"SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')",
+		"")
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +362,15 @@ func (p PostgreSQL) loggingData(title, query, parameter string) error {
 
 	var data []string
 
-	rows, err := p.DB.Query(query, parameter)
+	var rows *sql.Rows
+	var err error
+
+	if parameter == "" {
+		rows, err = p.DB.Query(query)
+
+	} else {
+		rows, err = p.DB.Query(query, parameter)
+	}
 
 	if err != nil {
 		return err
