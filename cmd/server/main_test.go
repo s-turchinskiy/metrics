@@ -320,8 +320,7 @@ func TestInspectDatabase(t *testing.T) {
 	suite := suite.Suite{}
 	id := "PopulateCounter" + strconv.Itoa(rand.Intn(256*256*256))
 
-	httpc := resty.New().
-		SetHostURL(settings.Settings.Address.String())
+	httpc := resty.New().SetBaseURL(settings.Settings.Address.String())
 
 	suite.Run("populate counter", func() {
 		req := httpc.R().
