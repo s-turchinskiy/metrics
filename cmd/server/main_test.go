@@ -1,17 +1,27 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"github.com/go-resty/resty/v2"
+	"github.com/jmoiron/sqlx"
+	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"github.com/s-turchinskiy/metrics/internal/testingcommon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"io"
+	"log"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"testing"
+	"time"
 )
 
 type want struct {
@@ -293,4 +303,99 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 	tests := []testingcommon.TestPostGzip{test1, test2}
 	testingcommon.TestGzipCompression(t, handler, tests)
 
+}
+
+func TestInspectDatabase(t *testing.T) {
+
+	return
+	
+	settings.GetSettings()
+	settings.Settings.Store = settings.Database
+	ctx := context.Background()
+	dbconn := sqlx.MustOpen("pgx", settings.Settings.Database.String())
+	if err := dbconn.PingContext(ctx); err != nil {
+		log.Fatal(err)
+	}
+
+	suite := suite.Suite{}
+	id := "PopulateCounter" + strconv.Itoa(rand.Intn(256*256*256))
+
+	httpc := resty.New().
+		SetHostURL(settings.Settings.Address.String())
+
+	suite.Run("populate counter", func() {
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json")
+
+		var value int64
+		resp, err := req.
+			SetBody(
+				&models.Metrics{
+					ID:    id,
+					MType: "counter",
+					Delta: &value,
+				}).
+			Post("update/")
+
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
+		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
+		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
+
+		if !dumpErr {
+			/*dump := dumpRequest(req.RawRequest, true)
+			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)*/
+			log.Fatal(dumpErr)
+		}
+	})
+
+	suite.Run("delay", func() {
+		time.Sleep(5 * time.Second)
+	})
+
+	suite.Run("inspect", func() {
+		suite.Require().NotNil(dbconn,
+			"Невозможно проинспектировать базу данных, нет подключения")
+
+		tables, err := fetchTables(dbconn)
+		suite.Require().NoError(err,
+			"Ошибка получения списка таблиц базы данных")
+		suite.Require().NotEmpty(tables,
+			"Не найдено ни одной пользовательской таблицы в БД")
+
+	})
+}
+
+func fetchTables(dbconn *sqlx.DB) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	query := `
+		SELECT
+			table_schema || '.' || table_name
+		FROM information_schema.tables
+		WHERE
+			table_schema NOT IN ('pg_catalog', 'information_schema')
+	`
+
+	rows, err := dbconn.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось выполнить запрос листинга таблиц: %w", err)
+	}
+	defer rows.Close()
+
+	var tables []string
+	for rows.Next() {
+		var tablename string
+		if err := rows.Scan(&tablename); err != nil {
+			return nil, fmt.Errorf("не удалось получить строку результата: %w", err)
+		}
+		tables = append(tables, tablename)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка обработки курсора базы данных: %w", err)
+	}
+	return tables, nil
 }
