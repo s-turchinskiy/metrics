@@ -301,8 +301,6 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 
 func TestInspectDatabase(t *testing.T) {
 
-	return
-
 	/*settings.GetSettings()
 	settings.Settings.Store = settings.Database
 	ctx := context.Background()
