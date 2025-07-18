@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+type keyTx string
+
 type PostgreSQL struct {
 	db          *sqlx.DB
 	tableSchema string
@@ -60,7 +62,7 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 
 	defer tx.Rollback()
 
-	ctx2 := context.WithValue(ctx, "tx", tx)
+	ctx2 := context.WithValue(ctx, keyTx("tx"), tx)
 
 	_, exist, err := p.GetCounter(ctx2, metricsName)
 	if err != nil {
@@ -146,7 +148,7 @@ func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value 
 
 	var row *sql.Row
 
-	tx := ctx.Value("tx")
+	tx := ctx.Value(keyTx("tx"))
 
 	if tx != nil {
 		row = tx.(*sql.Tx).QueryRowContext(ctx, query, argMetricsName)
