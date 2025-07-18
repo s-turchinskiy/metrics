@@ -1,14 +1,19 @@
-package main
+package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/mailru/easyjson"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
+	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"html/template"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -18,11 +23,51 @@ type OutputAllMetrics struct {
 	Table  map[string]string
 }
 
-const contentTypeTextHTML = "text/html; charset=utf-8"
+type MetricsHandler struct {
+	Storage service.MetricsUpdater
+}
+
+const ContentTypeTextHTML = "text/html; charset=utf-8"
 
 var (
 	templateOutputAllMetrics = `<div>{{.Header}}</div><table style="margin-left: 40px">{{range $k, $v:= .Table}}<tr><td>{{$k}}</td><td>{{$v}}</td></tr>{{end}}</table>`
 )
+
+func NewHandler(ctx context.Context) *MetricsHandler {
+	metricsHandler := &MetricsHandler{}
+	if settings.Settings.Store == settings.Database {
+
+		p, err := postgresql.Initialize(ctx)
+		if err != nil {
+			logger.Log.Debugw("Connect to database error", "error", err.Error())
+			log.Fatal(err)
+		}
+
+		metricsHandler.Storage = &service.MetricsStorage{
+			Repository: p,
+		}
+
+	} else {
+
+		metricsHandler.Storage = &service.MetricsStorage{
+			Repository: &memcashed.MemCashed{
+				Gauge:   make(map[string]float64),
+				Counter: make(map[string]int64),
+			},
+		}
+
+		if settings.Settings.Restore {
+			err := metricsHandler.Storage.LoadMetricsFromFile(ctx)
+			if err != nil {
+				logger.Log.Errorw("LoadMetricsFromFile error", "error", err.Error())
+				log.Fatal(err)
+			}
+		}
+	}
+
+	return metricsHandler
+
+}
 
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
@@ -41,7 +86,7 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.storage.GetAllMetrics(r.Context())
+	result, err := h.Storage.GetAllMetrics(r.Context())
 	if err != nil {
 		logger.Log.Info("error getting data", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -69,7 +114,7 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", contentTypeTextHTML)
+	w.Header().Set("Content-Type", ContentTypeTextHTML)
 
 	if r.Method != http.MethodPost {
 		logger.Log.Infow("error, Method != Post", "Method", r.Method)
@@ -93,7 +138,7 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		MetricsValue: pathSlice[2], //r.PathValue("MetricsValue"),
 	}
 
-	err := h.storage.UpdateMetric(r.Context(), metric)
+	err := h.Storage.UpdateMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -119,7 +164,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	}
 
 	metric := models.StorageMetrics{Name: req.ID, MType: req.MType, Delta: req.Delta, Value: req.Value}
-	result, err := h.storage.UpdateTypedMetric(r.Context(), metric)
+	result, err := h.Storage.UpdateTypedMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Infoln("error", err.Error(), "metric", metric)
 		w.Header().Set("Content-Type", "text/plain")
@@ -139,7 +184,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	}
 
 	if !settings.Settings.AsynchronousWritingDataToFile {
-		err := h.storage.SaveMetricsToFile(r.Context())
+		err := h.Storage.SaveMetricsToFile(r.Context())
 		if err != nil {
 			logger.Log.Info("error SaveMetricsToFile", zap.Error(err))
 			return
@@ -166,10 +211,10 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 	metric := models.StorageMetrics{Name: req.ID, MType: req.MType, Delta: req.Delta, Value: req.Value}
 
-	result, err := h.storage.GetTypedMetric(r.Context(), metric)
+	result, err := h.Storage.GetTypedMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
-		w.Header().Set("Content-Type", contentTypeTextHTML)
+		w.Header().Set("Content-Type", ContentTypeTextHTML)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))
 		return
@@ -191,7 +236,7 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 
 func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", contentTypeTextHTML)
+	w.Header().Set("Content-Type", ContentTypeTextHTML)
 
 	if r.Method != http.MethodGet {
 		logger.Log.Infow("error, Method != Get", "Method", r.Method)
@@ -214,7 +259,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 		MetricsName: pathSlice[1],
 	}
 
-	value, err := h.storage.GetMetric(r.Context(), metric)
+	value, err := h.Storage.GetMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Infoln(err.Error())
 		w.WriteHeader(http.StatusNotFound)
@@ -228,7 +273,7 @@ func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {
 
 func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", contentTypeTextHTML)
+	w.Header().Set("Content-Type", ContentTypeTextHTML)
 
 	if r.Method != http.MethodGet {
 		logger.Log.Infow("error, Method != Get", "Method", r.Method)
@@ -236,7 +281,7 @@ func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.storage.Ping(r.Context())
+	data, err := h.Storage.Ping(r.Context())
 
 	if err != nil {
 		logger.Log.Infoln(err.Error())

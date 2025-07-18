@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
+	"github.com/s-turchinskiy/metrics/internal/server"
+	"github.com/s-turchinskiy/metrics/internal/server/handlers"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
@@ -12,13 +13,8 @@ import (
 	"go.uber.org/zap"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 )
-
-type MetricsHandler struct {
-	storage service.MetricsUpdater
-}
 
 func init() {
 
@@ -42,37 +38,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	metricsHandler := &MetricsHandler{}
-	if settings.Settings.Store == settings.Database {
-
-		p, err := postgresql.Initialize(ctx)
-		if err != nil {
-			logger.Log.Debugw("Connect to database error", "error", err.Error())
-			log.Fatal(err)
-		}
-
-		metricsHandler.storage = &service.MetricsStorage{
-			Repository: p,
-		}
-
-	} else {
-
-		metricsHandler.storage = &service.MetricsStorage{
-			Repository: &memcashed.MemCashed{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64),
-			},
-		}
-
-	}
-
-	if settings.Settings.Restore {
-		err := metricsHandler.storage.LoadMetricsFromFile(ctx)
-		if err != nil {
-			logger.Log.Errorw("LoadMetricsFromFile error", "error", err.Error())
-			log.Fatal(err)
-		}
-	}
+	fff
 
 	errors := make(chan error)
 
@@ -94,7 +60,7 @@ func main() {
 	log.Fatal(err)
 }
 
-func saveMetricsToFilePeriodically(ctx context.Context, h *MetricsHandler, errors chan error) {
+func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandler, errors chan error) {
 
 	if !settings.Settings.AsynchronousWritingDataToFile {
 		return
@@ -112,56 +78,11 @@ func saveMetricsToFilePeriodically(ctx context.Context, h *MetricsHandler, error
 	}
 }
 
-func run(h *MetricsHandler) error {
+func run(h *service.MetricsHandler) error {
 
-	router := chi.NewRouter()
-	router.Use(gzipMiddleware)
-	router.Use(logger.Logger)
-	router.Route("/update", func(r chi.Router) {
-		r.Post("/", h.UpdateMetricJSON)
-		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", h.UpdateMetric)
-	})
-	router.Route("/value", func(r chi.Router) {
-		r.Post("/", h.GetTypedMetric)
-		r.Get("/{MetricsType}/{MetricsName}", h.GetMetric)
-	})
-	router.Route("/ping", func(r chi.Router) {
-		r.Get("/", h.Ping)
-	})
-
-	router.Get(`/`, h.GetAllMetrics)
+	router := server.Router(h)
 
 	logger.Log.Info("Running server", zap.String("address", settings.Settings.Address.String()))
 
 	return http.ListenAndServe(settings.Settings.Address.String(), router)
-}
-
-func gzipMiddleware(next http.Handler) http.Handler {
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		acceptEncoding := r.Header.Get("Accept-Encoding")
-		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-
-		if supportsGzip {
-			cw := newCompressWriter(w)
-			w = cw
-			defer cw.Close()
-		}
-
-		contentEncoding := r.Header.Get("Content-Encoding")
-		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		if sendsGzip {
-			cr, err := newCompressReader(r.Body)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			r.Body = cr
-			defer cr.Close()
-		}
-
-		next.ServeHTTP(w, r)
-
-	})
 }

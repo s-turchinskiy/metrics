@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/jmoiron/sqlx"
+	"github.com/s-turchinskiy/metrics/internal/server/gzip"
+	"github.com/s-turchinskiy/metrics/internal/server/handlers"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
@@ -50,7 +52,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 		request: "/update/gauge/someMetric/1.1",
 		storage: EmptyService(),
 		want: want{
-			contentType: contentTypeTextHTML,
+			contentType: handlers.ContentTypeTextHTML,
 			statusCode:  200,
 			storage: &service.MetricsStorage{
 				Repository: &memcashed.MemCashed{
@@ -66,7 +68,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 			request: "/update/gauge/someMetric/1.1",
 			storage: EmptyService(),
 			want: want{
-				contentType: contentTypeTextHTML,
+				contentType: handlers.ContentTypeTextHTML,
 				statusCode:  http.StatusMethodNotAllowed,
 				storage:     EmptyService(),
 			},
@@ -77,7 +79,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 			request: "/update/gauge/someMetric/bad",
 			storage: EmptyService(),
 			want: want{
-				contentType: contentTypeTextHTML,
+				contentType: handlers.ContentTypeTextHTML,
 				statusCode:  http.StatusBadRequest,
 				storage:     EmptyService(),
 				response:    "MetricsValue = bad, error: strconv.ParseFloat: parsing \"bad\": invalid syntax",
@@ -88,8 +90,8 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
-			h := &MetricsHandler{
-				storage: tt.storage,
+			h := &handlers.MetricsHandler{
+				Storage: tt.storage,
 			}
 			h.UpdateMetric(w, request)
 
@@ -124,7 +126,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 		request: "/value/gauge/someMetric",
 		storage: EmptyService(),
 		want: want{
-			contentType: contentTypeTextHTML,
+			contentType: handlers.ContentTypeTextHTML,
 			statusCode:  http.StatusNotFound,
 			response:    "not found",
 		},
@@ -140,7 +142,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 				},
 			},
 			want: want{
-				contentType: contentTypeTextHTML,
+				contentType: handlers.ContentTypeTextHTML,
 				statusCode:  http.StatusOK,
 				response:    "1.23",
 			},
@@ -151,8 +153,8 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
-			h := &MetricsHandler{
-				storage: tt.storage,
+			h := &handlers.MetricsHandler{
+				Storage: tt.storage,
 			}
 			h.GetMetric(w, request)
 
@@ -176,13 +178,13 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
 	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
-	h := &MetricsHandler{storage: &service.MetricsStorage{
+	h := &handlers.MetricsHandler{Storage: &service.MetricsStorage{
 		Repository: &memcashed.MemCashed{
 			Gauge:   map[string]float64{"someMetric": 1.23},
 			Counter: make(map[string]int64),
 		},
 	}}
-	handler := gzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
+	handler := gzip.GzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
 
 	test1 := testingcommon.TestPostGzip{Name: "Gauge отправка корректного значения",
 		ResponseCode: 200,
@@ -255,7 +257,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 
 	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
 
-	h := &MetricsHandler{storage: &service.MetricsStorage{
+	h := &handlers.MetricsHandler{Storage: &service.MetricsStorage{
 		Repository: &memcashed.MemCashed{
 			Gauge:   map[string]float64{"someMetric": 1.23},
 			Counter: make(map[string]int64),
@@ -264,7 +266,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 	}
 
 	//handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
-	handler := gzipMiddleware(http.HandlerFunc(h.GetTypedMetric))
+	handler := gzip.GzipMiddleware(http.HandlerFunc(h.GetTypedMetric))
 
 	test1 := testingcommon.TestPostGzip{Name: "Gauge проверка присутствующего значения",
 		ResponseCode: 200,

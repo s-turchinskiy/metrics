@@ -147,11 +147,11 @@ func (p *PostgreSQL) loggingData(ctx context.Context, title, query, parameter st
 		rows, err = p.db.QueryContext(ctx, query, parameter)
 	}
 
+	defer rows.Close()
+
 	if err != nil {
 		return err
 	}
-
-	defer rows.Close()
 
 	for rows.Next() {
 		var s string
