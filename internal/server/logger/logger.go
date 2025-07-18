@@ -28,7 +28,7 @@ func Initialize() error {
 	cfg := zap.NewProductionConfig()
 	cfg.OutputPaths = []string{"server.log", "stdout"}
 	cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.DateTime)
-	cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 
 	logger, err := cfg.Build()
 	if err != nil {
