@@ -6,9 +6,6 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server"
 	"github.com/s-turchinskiy/metrics/internal/server/handlers"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
-	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
-	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
-	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"log"
@@ -38,7 +35,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fff
+	metricsHandler := handlers.NewHandler(ctx)
 
 	errors := make(chan error)
 
@@ -55,7 +52,7 @@ func main() {
 	go saveMetricsToFilePeriodically(ctx, metricsHandler, errors)
 
 	err = <-errors
-	metricsHandler.storage.SaveMetricsToFile(ctx)
+	metricsHandler.Storage.SaveMetricsToFile(ctx)
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	log.Fatal(err)
 }
@@ -69,7 +66,7 @@ func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandl
 	ticker := time.NewTicker(time.Duration(settings.Settings.StoreInterval) * time.Second)
 	for range ticker.C {
 
-		err := h.storage.SaveMetricsToFile(ctx)
+		err := h.Storage.SaveMetricsToFile(ctx)
 		if err != nil {
 			logger.Log.Infoln("error", err.Error())
 			errors <- err
@@ -78,7 +75,7 @@ func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandl
 	}
 }
 
-func run(h *service.MetricsHandler) error {
+func run(h *handlers.MetricsHandler) error {
 
 	router := server.Router(h)
 
