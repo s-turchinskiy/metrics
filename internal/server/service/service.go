@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,7 +38,7 @@ type Repository interface {
 	CountGauges(ctx context.Context) int
 	CountCounters(ctx context.Context) int
 	GetGauge(ctx context.Context, metricsName string) (float64, bool, error)
-	GetCounter(ctx context.Context, metricsName string) (int64, bool, error)
+	GetCounter(ctx context.Context, metricsName string, tx *sql.Tx) (int64, bool, error)
 	GetAllGauges(ctx context.Context) (map[string]float64, error)
 	GetAllCounters(ctx context.Context) (map[string]int64, error)
 	ReloadAllGauges(context.Context, map[string]float64) error
@@ -106,7 +107,7 @@ func (s *MetricsStorage) UpdateTypedMetric(ctx context.Context, metric models.St
 		if metric.Delta == nil {
 			return &result, fmt.Errorf("delta is not defined")
 		}
-		currentValue, exist, err := s.Repository.GetCounter(ctx, metric.Name)
+		currentValue, exist, err := s.Repository.GetCounter(ctx, metric.Name, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +161,7 @@ func (s *MetricsStorage) UpdateMetric(ctx context.Context, metric models.Untyped
 			return err
 		}
 
-		currentValue, exist, err := s.Repository.GetCounter(ctx, metric.MetricsName)
+		currentValue, exist, err := s.Repository.GetCounter(ctx, metric.MetricsName, nil)
 		if err != nil {
 			return err
 		}
@@ -206,7 +207,7 @@ func (s *MetricsStorage) GetTypedMetric(ctx context.Context, metric models.Stora
 
 	case "counter":
 
-		value, exist, err := s.Repository.GetCounter(ctx, metric.Name)
+		value, exist, err := s.Repository.GetCounter(ctx, metric.Name, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +246,7 @@ func (s *MetricsStorage) GetMetric(ctx context.Context, metric models.UntypedMet
 		return strconv.FormatFloat(value, 'f', -1, 64), nil
 	case "counter":
 
-		value, exist, err := s.Repository.GetCounter(ctx, metric.MetricsName)
+		value, exist, err := s.Repository.GetCounter(ctx, metric.MetricsName, nil)
 		if err != nil {
 			return "", err
 		}

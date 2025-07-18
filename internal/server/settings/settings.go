@@ -169,6 +169,7 @@ func GetSettings() error {
 	}
 
 	DatabaseDsn := os.Getenv("DATABASE_DSN")
+	logger.Log.Debug("Received DatabaseDsn from env", DatabaseDsn)
 	if DatabaseDsn != "" {
 		err := Settings.Database.Set(DatabaseDsn)
 		if err != nil {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
+	"github.com/s-turchinskiy/metrics/internal"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"time"
 )
@@ -52,12 +53,19 @@ func (p *PostgreSQL) UpdateGauge(ctx context.Context, metricsName string, newVal
 
 func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newValue int64) error {
 
-	var sqlStatement string
-	_, exist, err := p.GetCounter(ctx, metricsName)
+	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 
+	defer tx.Rollback()
+
+	_, exist, err := p.GetCounter(ctx, metricsName, tx)
+	if err != nil {
+		return err
+	}
+
+	var sqlStatement string
 	if exist {
 		sqlStatement = `UPDATE postgres.counters SET value = $1, date = $2 WHERE metrics_name = $3`
 	} else {
@@ -69,7 +77,15 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 		"value", newValue,
 	)
 
-	_, err = p.db.ExecContext(ctx, sqlStatement, newValue, time.Now(), metricsName)
+	_, err = tx.ExecContext(ctx, sqlStatement, newValue, time.Now(), metricsName)
+	if err != nil {
+		return internal.WrapError(err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return internal.WrapError(err)
+	}
 
 	return err
 
@@ -121,9 +137,17 @@ func (p *PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value fl
 
 }
 
-func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value int64, isExist bool, err error) {
+func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string, tx *sql.Tx) (value int64, isExist bool, err error) {
 
-	row := p.db.QueryRowContext(ctx, "SELECT value FROM postgres.counters WHERE metrics_name = $1", metricsName)
+	query := "SELECT value FROM postgres.counters WHERE metrics_name = $metrics_name"
+	argMetricsName := sql.Named("metrics_name", metricsName)
+
+	var row *sql.Row
+	if tx != nil {
+		row = tx.QueryRowContext(ctx, query, argMetricsName)
+	} else {
+		row = p.db.QueryRowContext(ctx, query, argMetricsName)
+	}
 	err = row.Scan(&value)
 
 	isExist = true
@@ -132,6 +156,8 @@ func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value 
 		if errors.Is(err, sql.ErrNoRows) {
 			isExist = false
 			err = nil
+		} else {
+			return 0, false, internal.WrapError(err)
 		}
 	}
 

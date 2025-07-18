@@ -29,7 +29,10 @@ const (
 
 func Initialize(ctx context.Context) (service.Repository, error) {
 
-	db := sqlx.MustOpen("pgx", settings.Settings.Database.String())
+	addr := settings.Settings.Database.String()
+	logger.Log.Debug("addr for Sql.Open", addr)
+
+	db := sqlx.MustOpen("pgx", addr)
 	if err := db.PingContext(ctx); err != nil {
 		return nil, err
 	}
