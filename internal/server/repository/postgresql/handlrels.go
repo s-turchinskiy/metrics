@@ -52,20 +52,6 @@ func (p *PostgreSQL) UpdateGauge(ctx context.Context, metricsName string, newVal
 
 func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newValue int64) error {
 
-	err := p.loggingData(
-		ctx,
-		"view new tables",
-		"SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')",
-		"")
-	if err != nil {
-		return err
-	}
-
-	err = p.withLoggingCreatingTable(ctx, "counters", p.createTableCounters)
-	if err != nil {
-		return err
-	}
-
 	var sqlStatement string
 	_, exist, err := p.GetCounter(ctx, metricsName)
 	if err != nil {

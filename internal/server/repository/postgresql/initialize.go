@@ -2,15 +2,29 @@ package postgresql
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/jmoiron/sqlx"
+	"github.com/s-turchinskiy/metrics/internal"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"log"
 	"strings"
 	"time"
+)
+
+const (
+	queryCreateTableGauges = `CREATE TABLE IF NOT EXISTS %s.gauges (
+    id SERIAL PRIMARY KEY,
+    metrics_name TEXT NOT NULL,
+    value DOUBLE PRECISION,
+    date TIMESTAMPTZ)`
+
+	queryCreateTableCounters = `CREATE TABLE IF NOT EXISTS %s.counters (
+    id SERIAL PRIMARY KEY,
+    metrics_name TEXT NOT NULL,
+    value INT,
+    date TIMESTAMPTZ)`
 )
 
 func Initialize(ctx context.Context) (service.Repository, error) {
@@ -28,79 +42,69 @@ func Initialize(ctx context.Context) (service.Repository, error) {
 	p := &PostgreSQL{db: db}
 	p.tableSchema = "postgres"
 
-	p.runCommand(ctx, "DROP TABLE postgres.gauges IF EXIST")
-	//p.runCommand("DROP TABLE postgres.counters IF EXIST")
-
-	err := p.loggingData(ctx,
-		"schemas",
-		"SELECT schema_name FROM information_schema.schemata WHERE catalog_name = $1;",
-		settings.Settings.Database.DBName)
+	_, err := p.db.ExecContext(ctx, "DROP TABLE IF EXISTS postgres.testtable")
 	if err != nil {
-		return nil, err
+		return nil, internal.WrapError(err)
 	}
 
-	err = p.loggingData(
-		ctx,
-		"tables",
-		"SELECT table_name FROM information_schema.tables WHERE table_schema = $1",
-		p.tableSchema)
+	err = p.LoggingStateDatabase(ctx)
 	if err != nil {
-		return nil, err
+		return nil, internal.WrapError(err)
 	}
 
-	err = p.loggingData(
-		ctx,
-		"view new tables",
-		"SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')",
-		"")
+	_, err = p.db.ExecContext(ctx, fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, p.tableSchema))
 	if err != nil {
-		return nil, err
+		return nil, internal.WrapError(err)
 	}
 
-	err = p.createSchema(ctx, p.tableSchema)
+	err = p.withLoggingCreatingTable(ctx, "testtable", "CREATE TABLE IF NOT EXISTS %s.testtable (id SERIAL PRIMARY KEY)")
 	if err != nil {
-		return nil, err
+		return nil, internal.WrapError(err)
 	}
 
-	err = p.withLoggingCreatingTable(ctx, "gauges", p.createTableGauges)
+	err = p.withLoggingCreatingTable(ctx, "gauges", queryCreateTableGauges)
 	if err != nil {
-		return nil, err
+		return nil, internal.WrapError(err)
 	}
 
-	err = p.withLoggingCreatingTable(ctx, "counters", p.createTableCounters)
+	err = p.withLoggingCreatingTable(ctx, "counters", queryCreateTableCounters)
 	if err != nil {
-		return nil, err
+		return nil, internal.WrapError(err)
+	}
+
+	err = p.LoggingStateDatabase(ctx)
+	if err != nil {
+		return nil, internal.WrapError(err)
 	}
 
 	return p, nil
 
 }
 
-func (p *PostgreSQL) createSchema(ctx context.Context, tableSchema string) error {
-	_, err := p.db.ExecContext(ctx, fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, tableSchema))
-	return err
-}
+func (p *PostgreSQL) LoggingStateDatabase(ctx context.Context) error {
 
-func (p *PostgreSQL) createTableGauges(ctx context.Context) error {
-	_, err := p.db.ExecContext(ctx, fmt.Sprintf(
-		`CREATE TABLE IF NOT EXISTS %s.gauges (
-    id SERIAL PRIMARY KEY,
-    metrics_name TEXT NOT NULL,
-    value DOUBLE PRECISION,
-    date TIMESTAMPTZ)`,
-		p.tableSchema))
-	return err
-}
+	err := p.loggingData(ctx, "schemas",
+		"SELECT schema_name FROM information_schema.schemata WHERE catalog_name = $1;",
+		settings.Settings.Database.DBName)
+	if err != nil {
+		return internal.WrapError(err)
+	}
 
-func (p *PostgreSQL) createTableCounters(ctx context.Context) error {
-	_, err := p.db.ExecContext(ctx, fmt.Sprintf(
-		`CREATE TABLE IF NOT EXISTS %s.counters (
-    id SERIAL PRIMARY KEY,
-    metrics_name TEXT NOT NULL,
-    value INT,
-    date TIMESTAMPTZ)`,
-		p.tableSchema))
-	return err
+	err = p.loggingData(ctx,
+		"tables",
+		"SELECT table_name FROM information_schema.tables WHERE table_schema = $1",
+		p.tableSchema)
+	if err != nil {
+		return internal.WrapError(err)
+	}
+
+	err = p.loggingData(ctx,
+		"view new tables",
+		"SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')")
+	if err != nil {
+		return internal.WrapError(err)
+	}
+	return nil
 }
 
 func (p *PostgreSQL) tableExist(ctx context.Context, tableName string) bool {
@@ -118,10 +122,10 @@ func (p *PostgreSQL) tableExist(ctx context.Context, tableName string) bool {
 	return isExist
 }
 
-func (p *PostgreSQL) withLoggingCreatingTable(ctx context.Context, tableName string, createTable func(context.Context) error) error {
+func (p *PostgreSQL) withLoggingCreatingTable(ctx context.Context, tableName, query string) error {
 
 	existBefore := p.tableExist(ctx, tableName)
-	err := createTable(ctx)
+	_, err := p.db.ExecContext(ctx, fmt.Sprintf(query, p.tableSchema))
 	if err != nil {
 		return err
 	}
@@ -133,47 +137,21 @@ func (p *PostgreSQL) withLoggingCreatingTable(ctx context.Context, tableName str
 	return nil
 }
 
-func (p *PostgreSQL) loggingData(ctx context.Context, title, query, parameter string) error {
+func (p *PostgreSQL) loggingData(ctx context.Context, title, query string, args ...interface{}) error {
 
 	var data []string
 
-	var rows *sql.Rows
-	var err error
+	err := p.db.SelectContext(
+		ctx,
+		&data,
+		query,
+		args...)
 
-	if parameter == "" {
-		rows, err = p.db.QueryContext(ctx, query)
-
-	} else {
-		rows, err = p.db.QueryContext(ctx, query, parameter)
-	}
-
-	defer rows.Close()
-
-	if err != nil {
-		return err
-	}
-
-	for rows.Next() {
-		var s string
-		err = rows.Scan(&s)
-		if err != nil {
-			return err
-		}
-
-		data = append(data, s)
-	}
-
-	err = rows.Err()
 	if err != nil {
 		return err
 	}
 
 	logger.Log.Debugw(title, "values", strings.Join(data, ","))
+
 	return nil
-
-}
-
-func (p *PostgreSQL) runCommand(ctx context.Context, command string) error {
-	_, err := p.db.ExecContext(ctx, command)
-	return err
 }
