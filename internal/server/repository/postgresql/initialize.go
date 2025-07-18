@@ -30,12 +30,15 @@ const (
 func Initialize(ctx context.Context) (service.Repository, error) {
 
 	addr := settings.Settings.Database.String()
-	logger.Log.Debug("addr for Sql.Open", addr)
-	logger.Log.Debug("FlagDatabaseDSN for Sql.Open", settings.Settings.Database.FlagDatabaseDSN)
+	logger.Log.Debug("addr for Sql.Open: ", addr)
+	logger.Log.Debug("FlagDatabaseDSN for Sql.Open: ", settings.Settings.Database.FlagDatabaseDSN)
 
-	db := sqlx.MustOpen("pgx", settings.Settings.Database.FlagDatabaseDSN)
+	db, err := sqlx.Open("pgx", addr)
+	if err != nil {
+		return nil, internal.WrapError(err)
+	}
 	if err := db.PingContext(ctx); err != nil {
-		return nil, err
+		return nil, internal.WrapError(err)
 	}
 
 	db.SetConnMaxLifetime(time.Hour)
@@ -46,7 +49,7 @@ func Initialize(ctx context.Context) (service.Repository, error) {
 	p := &PostgreSQL{db: db}
 	p.tableSchema = "postgres"
 
-	_, err := p.db.ExecContext(ctx, "DROP TABLE IF EXISTS postgres.testtable")
+	_, err = p.db.ExecContext(ctx, "DROP TABLE IF EXISTS postgres.testtable")
 	if err != nil {
 		return nil, internal.WrapError(err)
 	}

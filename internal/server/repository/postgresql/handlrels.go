@@ -143,17 +143,16 @@ func (p *PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value fl
 
 func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value int64, isExist bool, err error) {
 
-	query := "SELECT value FROM postgres.counters WHERE metrics_name = $metrics_name"
-	argMetricsName := sql.Named("metrics_name", metricsName)
+	query := "SELECT value FROM postgres.counters WHERE metrics_name = $1"
 
 	var row *sql.Row
 
 	tx := ctx.Value(keyTx("tx"))
 
 	if tx != nil {
-		row = tx.(*sql.Tx).QueryRowContext(ctx, query, argMetricsName)
+		row = tx.(*sql.Tx).QueryRowContext(ctx, query, metricsName)
 	} else {
-		row = p.db.QueryRowContext(ctx, query, argMetricsName)
+		row = p.db.QueryRowContext(ctx, query, metricsName)
 	}
 	err = row.Scan(&value)
 
