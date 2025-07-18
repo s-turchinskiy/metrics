@@ -60,7 +60,9 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 
 	defer tx.Rollback()
 
-	_, exist, err := p.GetCounter(ctx, metricsName, tx)
+	ctx2 := context.WithValue(ctx, "tx", tx)
+
+	_, exist, err := p.GetCounter(ctx2, metricsName)
 	if err != nil {
 		return err
 	}
@@ -137,14 +139,17 @@ func (p *PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value fl
 
 }
 
-func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string, tx *sql.Tx) (value int64, isExist bool, err error) {
+func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value int64, isExist bool, err error) {
 
 	query := "SELECT value FROM postgres.counters WHERE metrics_name = $metrics_name"
 	argMetricsName := sql.Named("metrics_name", metricsName)
 
 	var row *sql.Row
+
+	tx := ctx.Value("tx")
+
 	if tx != nil {
-		row = tx.QueryRowContext(ctx, query, argMetricsName)
+		row = tx.(*sql.Tx).QueryRowContext(ctx, query, argMetricsName)
 	} else {
 		row = p.db.QueryRowContext(ctx, query, argMetricsName)
 	}

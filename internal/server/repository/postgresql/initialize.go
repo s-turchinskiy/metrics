@@ -31,8 +31,9 @@ func Initialize(ctx context.Context) (service.Repository, error) {
 
 	addr := settings.Settings.Database.String()
 	logger.Log.Debug("addr for Sql.Open", addr)
+	logger.Log.Debug("FlagDatabaseDSN for Sql.Open", settings.Settings.Database.FlagDatabaseDSN)
 
-	db := sqlx.MustOpen("pgx", addr)
+	db := sqlx.MustOpen("pgx", settings.Settings.Database.FlagDatabaseDSN)
 	if err := db.PingContext(ctx); err != nil {
 		return nil, err
 	}
