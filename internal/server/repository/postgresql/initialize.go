@@ -129,6 +129,11 @@ func (p *PostgreSQL) withLoggingCreatingTable(ctx context.Context, tableName, qu
 	if err != nil {
 		return err
 	}
+
+	if existBefore {
+		logger.Log.Debug(fmt.Sprintf("table %s.%s already exist", p.tableSchema, tableName))
+		return nil
+	}
 	existAfter := p.tableExist(ctx, tableName)
 	if !existBefore && existAfter {
 		logger.Log.Info(strings.ToUpper("created table "), p.tableSchema+"."+tableName)
