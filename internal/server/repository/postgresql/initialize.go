@@ -90,16 +90,16 @@ func (p *PostgreSQL) LoggingStateDatabase(ctx context.Context) error {
 		return internal.WrapError(err)
 	}
 
-	err = p.loggingData(ctx,
+	/*err = p.loggingData(ctx,
 		"tables",
 		"SELECT table_name FROM information_schema.tables WHERE table_schema = $1",
 		p.tableSchema)
 	if err != nil {
 		return internal.WrapError(err)
-	}
+	}*/
 
 	err = p.loggingData(ctx,
-		"view new tables",
+		"view tables",
 		"SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')")
 	if err != nil {
 		return internal.WrapError(err)
