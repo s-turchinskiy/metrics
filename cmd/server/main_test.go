@@ -3,23 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
-	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"github.com/s-turchinskiy/metrics/internal/testingcommon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"io"
-	"log"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -308,8 +302,8 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 func TestInspectDatabase(t *testing.T) {
 
 	return
-	
-	settings.GetSettings()
+
+	/*settings.GetSettings()
 	settings.Settings.Store = settings.Database
 	ctx := context.Background()
 	dbconn := sqlx.MustOpen("pgx", settings.Settings.Database.String())
@@ -343,8 +337,6 @@ func TestInspectDatabase(t *testing.T) {
 		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
 
 		if !dumpErr {
-			/*dump := dumpRequest(req.RawRequest, true)
-			suite.T().Logf("Оригинальный запрос:\n\n%s", dump)*/
 			log.Fatal(dumpErr)
 		}
 	})
@@ -363,7 +355,7 @@ func TestInspectDatabase(t *testing.T) {
 		suite.Require().NotEmpty(tables,
 			"Не найдено ни одной пользовательской таблицы в БД")
 
-	})
+	})*/
 }
 
 func fetchTables(dbconn *sqlx.DB) ([]string, error) {
