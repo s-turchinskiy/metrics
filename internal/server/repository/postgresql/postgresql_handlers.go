@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
@@ -331,51 +330,65 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 
 func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.StorageMetrics) (int64, error) {
 
-	conn, err := p.pool.Acquire(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("acquire connection: %w", err)
-	}
-	defer conn.Release()
-
-	batch := new(pgx.Batch)
-
-	batch.Queue("TRUNCATE postgres.gauges")
-	batch.Queue("TRUNCATE postgres.counters")
 	for _, metric := range metrics {
-
 		switch metric.MType {
 		case "gauge":
-
-			batch.Queue(QueryInsertGauges, metric.Value, time.Now(), metric.Name)
+			p.UpdateGauge(ctx, metric.Name, *metric.Value)
 		case "counter":
-			batch.Queue(QueryInsertCounters, metric.Delta, time.Now(), metric.Name)
+
+			p.UpdateCounter(ctx, metric.Name, *metric.Delta)
 		default:
 			return 0, fmt.Errorf("unclown MType %s", metric.MType)
 		}
 	}
 
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return 0, internal.WrapError(err)
-	}
-	result := tx.SendBatch(ctx, batch)
+	return 0, nil
 
-	tag, err := result.Exec()
-	if err != nil {
-		return 0, internal.WrapError(err)
-	}
+	/*	conn, err := p.pool.Acquire(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("acquire connection: %w", err)
+		}
+		defer conn.Release()
 
-	err = result.Close()
-	if err != nil {
-		_ = tx.Rollback(ctx)
-		return 0, internal.WrapError(err)
-	}
+		batch := new(pgx.Batch)
 
-	err = tx.Commit(ctx)
-	if err != nil {
-		return 0, internal.WrapError(err)
-	}
+		batch.Queue("TRUNCATE postgres.gauges")
+		batch.Queue("TRUNCATE postgres.counters")
+		for _, metric := range metrics {
 
-	return tag.RowsAffected(), nil
+			switch metric.MType {
+			case "gauge":
+
+				batch.Queue(QueryInsertGauges, metric.Value, time.Now(), metric.Name)
+			case "counter":
+				batch.Queue(QueryInsertCounters, metric.Delta, time.Now(), metric.Name)
+			default:
+				return 0, fmt.Errorf("unclown MType %s", metric.MType)
+			}
+		}
+
+		tx, err := conn.Begin(ctx)
+		if err != nil {
+			return 0, internal.WrapError(err)
+		}
+		result := tx.SendBatch(ctx, batch)
+
+		tag, err := result.Exec()
+		if err != nil {
+			return 0, internal.WrapError(err)
+		}
+
+		err = result.Close()
+		if err != nil {
+			_ = tx.Rollback(ctx)
+			return 0, internal.WrapError(err)
+		}
+
+		err = tx.Commit(ctx)
+		if err != nil {
+			return 0, internal.WrapError(err)
+		}
+
+		return tag.RowsAffected(), nil*/
 
 }
