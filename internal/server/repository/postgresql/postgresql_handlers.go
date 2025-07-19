@@ -236,6 +236,9 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, "TRUNCATE metrics.gauges")
+	if err != nil {
+		return internal.WrapError(err)
+	}
 
 	portionData := make(map[string]float64, 10)
 
@@ -285,6 +288,9 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, "TRUNCATE metrics.counters")
+	if err != nil {
+		return internal.WrapError(err)
+	}
 
 	portionData := make(map[string]int64, 10)
 
@@ -344,7 +350,7 @@ func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.Stor
 		case "counter":
 			batch.Queue(QueryInsertCounters, metric.Delta, time.Now(), metric.Name)
 		default:
-			return 0, fmt.Errorf("unclown MType " + metric.MType)
+			return 0, fmt.Errorf("unclown MType %s", metric.MType)
 		}
 	}
 

@@ -29,7 +29,7 @@ func (m *MemCashed) ReloadAllMetrics(ctx context.Context, metrics []models.Stora
 				return 0, err
 			}
 		default:
-			return 0, fmt.Errorf("unclown MType " + metric.MType)
+			return 0, fmt.Errorf("unclown MType %s", metric.MType)
 
 		}
 
