@@ -203,14 +203,10 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return internal.WrapError(err)
 	}
 
 	defer tx.Rollback()
-
-	if err != nil {
-		return internal.WrapError(err)
-	}
 
 	portionData := make(map[string]float64, 10)
 
@@ -264,11 +260,6 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 	}
 
 	defer tx.Rollback()
-
-	_, err = tx.ExecContext(ctx, "TRUNCATE metrics.counters")
-	if err != nil {
-		return internal.WrapError(err)
-	}
 
 	portionData := make(map[string]int64, 10)
 
