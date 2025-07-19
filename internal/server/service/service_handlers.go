@@ -127,22 +127,16 @@ func (s *Service) UpdateMetric(ctx context.Context, metric models.UntypedMetric)
 
 	case "counter":
 
-		value, err := strconv.ParseInt(metric.MetricsValue, 10, 64)
+		delta, err := strconv.ParseInt(metric.MetricsValue, 10, 64)
 		if err != nil {
 			return err
 		}
 
-		currentValue, exist, err := s.Repository.GetCounter(ctx, metric.MetricsName)
+		err = s.Repository.UpdateCounter(ctx, metric.MetricsName, delta)
 		if err != nil {
 			return err
 		}
 
-		if !exist {
-			err = s.Repository.UpdateCounter(ctx, metric.MetricsName, value)
-			return err
-		}
-
-		err = s.Repository.UpdateCounter(ctx, metric.MetricsName, currentValue+value)
 		return err
 
 	default:
