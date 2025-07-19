@@ -91,27 +91,14 @@ func (s *Service) UpdateTypedMetric(ctx context.Context, metric models.StorageMe
 		if metric.Delta == nil {
 			return &result, fmt.Errorf("delta is not defined")
 		}
-		currentValue, exist, err := s.Repository.GetCounter(ctx, metric.Name)
+		err := s.Repository.UpdateCounter(ctx, metric.Name, *metric.Delta)
 		if err != nil {
 			return nil, err
 		}
-
-		if !exist {
-			newValue := *metric.Delta
-			err := s.Repository.UpdateCounter(ctx, metric.Name, newValue)
-			if err != nil {
-				return nil, err
-			}
-			result.Delta = &newValue
-			return &result, nil
-		}
-
-		newValue := currentValue + *metric.Delta
-		err = s.Repository.UpdateCounter(ctx, metric.Name, newValue)
+		*result.Delta, _, err = s.Repository.GetCounter(ctx, metric.Name)
 		if err != nil {
 			return nil, err
 		}
-		result.Delta = &newValue
 
 	default:
 		return nil, errMetricsTypeNotFound

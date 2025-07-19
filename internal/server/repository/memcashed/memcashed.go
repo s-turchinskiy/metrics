@@ -80,9 +80,19 @@ func (m *MemCashed) CountCounters(ctx context.Context) int {
 	return len(m.Counter)
 }
 
-func (m *MemCashed) UpdateCounter(ctx context.Context, metricsName string, newValue int64) error {
+func (m *MemCashed) UpdateCounter(ctx context.Context, metricsName string, delta int64) error {
 
-	m.Counter[metricsName] = newValue
+	_, exist, err := m.GetCounter(ctx, metricsName)
+	if err != nil {
+		return err
+	}
+
+	if !exist {
+		m.Counter[metricsName] = delta
+	} else {
+		m.Counter[metricsName] += delta
+	}
+
 	return nil
 
 }
