@@ -16,9 +16,9 @@ import (
 
 const (
 	QueryInsertUpdateCounter = `
-INSERT INTO postgres.counters (metrics_name, value, updated) 
-VALUES ($1, $2, $3)
-ON CONFLICT (metrics_name) DO UPDATE SET
+	INSERT INTO postgres.counters (metrics_name, value, updated) 
+	VALUES ($1, $2, $3)
+	ON CONFLICT (metrics_name) DO UPDATE SET
 			value = EXCLUDED.value + value,
 			updated = EXCLUDED.updated`
 
