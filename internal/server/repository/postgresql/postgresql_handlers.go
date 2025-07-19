@@ -62,6 +62,11 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 
 	defer tx.Rollback()
 
+	logger.Log.Debugw("PostgreSQL.UpdateCounter try",
+		"metricsName", metricsName,
+		"value", newValue,
+	)
+	
 	ctx2 := context.WithValue(ctx, keyTx("tx"), tx)
 
 	_, exist, err := p.GetCounter(ctx2, metricsName)
@@ -75,11 +80,6 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 	} else {
 		sqlStatement = QueryInsertCounters
 	}
-
-	logger.Log.Debugw("PostgreSQL.UpdateCounter try",
-		"metricsName", metricsName,
-		"value", newValue,
-	)
 
 	_, err = tx.ExecContext(ctx, sqlStatement, newValue, time.Now(), metricsName)
 	if err != nil {
