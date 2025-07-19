@@ -35,8 +35,8 @@ type test struct {
 	want    want
 }
 
-func EmptyService() *service.MetricsStorage {
-	return &service.MetricsStorage{
+func EmptyService() *service.Service {
+	return &service.Service{
 		Repository: &memcashed.MemCashed{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
@@ -54,7 +54,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 		want: want{
 			contentType: handlers.ContentTypeTextHTML,
 			statusCode:  200,
-			storage: &service.MetricsStorage{
+			storage: &service.Service{
 				Repository: &memcashed.MemCashed{
 					Gauge:   map[string]float64{"someMetric": 1.1},
 					Counter: make(map[string]int64),
@@ -91,7 +91,7 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
 			h := &handlers.MetricsHandler{
-				Storage: tt.storage,
+				Service: tt.storage,
 			}
 			h.UpdateMetric(w, request)
 
@@ -107,11 +107,11 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 
 			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
 			assert.Equal(t, tt.want.response, string(resBody))
-			//assert.InDeltaMapValues(t, tt.want.storage.(*MetricsStorage).Gauge, tt.storage.(*MetricsStorage).Gauge, 64)
+			//assert.InDeltaMapValues(t, tt.want.storage.(*Service).Gauge, tt.storage.(*Service).Gauge, 64)
 
-			eq := reflect.DeepEqual(tt.want.storage.(*service.MetricsStorage).Repository, tt.storage.(*service.MetricsStorage).Repository)
+			eq := reflect.DeepEqual(tt.want.storage.(*service.Service).Repository, tt.storage.(*service.Service).Repository)
 			if !eq {
-				t.Error("MetricsStorage are unequal.")
+				t.Error("Service are unequal.")
 			}
 
 		})
@@ -135,7 +135,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 			name:    "запрос присутсвующей метрики",
 			method:  http.MethodGet,
 			request: "/value/gauge/someMetric",
-			storage: &service.MetricsStorage{
+			storage: &service.Service{
 				Repository: &memcashed.MemCashed{
 					Gauge:   map[string]float64{"someMetric": 1.23},
 					Counter: make(map[string]int64),
@@ -154,7 +154,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
 			h := &handlers.MetricsHandler{
-				Storage: tt.storage,
+				Service: tt.storage,
 			}
 			h.GetMetric(w, request)
 
@@ -178,7 +178,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
 	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
-	h := &handlers.MetricsHandler{Storage: &service.MetricsStorage{
+	h := &handlers.MetricsHandler{Service: &service.Service{
 		Repository: &memcashed.MemCashed{
 			Gauge:   map[string]float64{"someMetric": 1.23},
 			Counter: make(map[string]int64),
@@ -257,7 +257,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 
 	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
 
-	h := &handlers.MetricsHandler{Storage: &service.MetricsStorage{
+	h := &handlers.MetricsHandler{Service: &service.Service{
 		Repository: &memcashed.MemCashed{
 			Gauge:   map[string]float64{"someMetric": 1.23},
 			Counter: make(map[string]int64),

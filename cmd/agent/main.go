@@ -28,6 +28,7 @@ func main() {
 
 	go services.UpdateMetrics(metricsHandler, errors)
 	go services.ReportMetrics(metricsHandler, errors)
+	go services.ReportMetricsBatch(metricsHandler, errors)
 
 	err := <-errors
 	log.Fatal(err)

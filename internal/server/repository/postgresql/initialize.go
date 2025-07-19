@@ -3,15 +3,22 @@ package postgresql
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jmoiron/sqlx"
 	"github.com/s-turchinskiy/metrics/internal"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
-	"github.com/s-turchinskiy/metrics/internal/server/service"
+	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"log"
 	"strings"
 	"time"
 )
+
+type PostgreSQL struct {
+	db          *sqlx.DB
+	pool        *pgxpool.Pool
+	tableSchema string
+}
 
 const (
 	queryCreateTableGauges = `CREATE TABLE IF NOT EXISTS %s.gauges (
@@ -27,7 +34,7 @@ const (
     date TIMESTAMPTZ)`
 )
 
-func Initialize(ctx context.Context) (service.Repository, error) {
+func Initialize(ctx context.Context) (repository.Repository, error) {
 
 	addr := settings.Settings.Database.String()
 	logger.Log.Debug("addr for Sql.Open: ", addr)
@@ -46,7 +53,12 @@ func Initialize(ctx context.Context) (service.Repository, error) {
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 
-	p := &PostgreSQL{db: db}
+	pool, err := pgxpool.New(ctx, settings.Settings.Database.String())
+	if err != nil {
+		return nil, internal.WrapError(err)
+	}
+
+	p := &PostgreSQL{db: db, pool: pool}
 	p.tableSchema = "postgres"
 
 	_, err = p.db.ExecContext(ctx, "DROP TABLE IF EXISTS postgres.testtable")

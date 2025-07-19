@@ -52,7 +52,7 @@ func main() {
 	go saveMetricsToFilePeriodically(ctx, metricsHandler, errors)
 
 	err = <-errors
-	metricsHandler.Storage.SaveMetricsToFile(ctx)
+	metricsHandler.Service.SaveMetricsToFile(ctx)
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	log.Fatal(err)
 }
@@ -66,7 +66,7 @@ func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandl
 	ticker := time.NewTicker(time.Duration(settings.Settings.StoreInterval) * time.Second)
 	for range ticker.C {
 
-		err := h.Storage.SaveMetricsToFile(ctx)
+		err := h.Service.SaveMetricsToFile(ctx)
 		if err != nil {
 			logger.Log.Infoln("error", err.Error())
 			errors <- err

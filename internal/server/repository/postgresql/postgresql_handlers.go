@@ -6,19 +6,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
 	"github.com/s-turchinskiy/metrics/internal"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"time"
 )
 
-type keyTx string
+const (
+	QueryInsertCounters = `INSERT INTO postgres.counters (value, date, metrics_name) VALUES ($1, $2, $3)`
+	QueryInsertGauges   = `INSERT INTO postgres.gauges (value, date, metrics_name) VALUES ($1, $2, $3)`
+)
 
-type PostgreSQL struct {
-	db          *sqlx.DB
-	tableSchema string
-}
+type keyTx string
 
 func (p *PostgreSQL) Ping(ctx context.Context) ([]byte, error) {
 
@@ -42,7 +43,7 @@ func (p *PostgreSQL) UpdateGauge(ctx context.Context, metricsName string, newVal
 	if exist {
 		sqlStatement = `UPDATE postgres.gauges SET value = $1, date = $2 WHERE metrics_name = $3`
 	} else {
-		sqlStatement = `INSERT INTO postgres.gauges (value, date, metrics_name) VALUES ($1, $2, $3)`
+		sqlStatement = QueryInsertGauges
 	}
 
 	_, err = p.db.ExecContext(ctx, sqlStatement, newValue, time.Now(), metricsName)
@@ -73,7 +74,7 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 	if exist {
 		sqlStatement = `UPDATE postgres.counters SET value = $1, date = $2 WHERE metrics_name = $3`
 	} else {
-		sqlStatement = `INSERT INTO postgres.counters (value, date, metrics_name) VALUES ($1, $2, $3)`
+		sqlStatement = QueryInsertCounters
 	}
 
 	logger.Log.Debugw("PostgreSQL.UpdateCounter try",
@@ -181,28 +182,16 @@ func (p *PostgreSQL) GetAllGauges(ctx context.Context) (map[string]float64, erro
 
 	result := make(map[string]float64)
 
-	rows, err := p.db.QueryContext(ctx, "SELECT metrics_name, value from postgres.gauges")
+	var metrics []models.DatabaseTableGauges
+	err := p.db.SelectContext(ctx, &metrics, "SELECT metrics_name, value from postgres.gauges")
+
 	if err != nil {
-		return nil, err
+		return nil, internal.WrapError(err)
+	}
+	for _, data := range metrics {
+		result[data.MetricsName] = data.Value
 	}
 
-	defer rows.Close()
-
-	for rows.Next() {
-		var metricsName string
-		var value float64
-		err = rows.Scan(&metricsName, &value)
-		if err != nil {
-			return nil, err
-		}
-
-		result[metricsName] = value
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, err
-	}
 	return result, nil
 
 }
@@ -239,11 +228,47 @@ func (p *PostgreSQL) GetAllCounters(ctx context.Context) (map[string]int64, erro
 
 func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float64) error {
 
+	tx, err := p.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, "TRUNCATE metrics.gauges")
+
+	portionData := make(map[string]float64, 10)
+
 	for metricsName, newValue := range data {
-		err := p.UpdateGauge(ctx, metricsName, newValue)
-		if err != nil {
-			return err
+		portionData[metricsName] = newValue
+
+		if len(portionData) == 10 {
+
+			for pMetricsname, pNewvalue := range portionData {
+				_, err = tx.ExecContext(ctx, QueryInsertGauges, pNewvalue, time.Now(), pMetricsname)
+				if err != nil {
+					return internal.WrapError(err)
+
+				}
+			}
+
+			for k := range portionData {
+				delete(portionData, k)
+			}
 		}
+	}
+
+	for pMetricsname, pNewvalue := range portionData {
+		_, err = tx.ExecContext(ctx, QueryInsertGauges, pNewvalue, time.Now(), pMetricsname)
+		if err != nil {
+			return internal.WrapError(err)
+
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return internal.WrapError(err)
 	}
 
 	return nil
@@ -252,12 +277,99 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int64) error {
 
+	tx, err := p.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, "TRUNCATE metrics.counters")
+
+	portionData := make(map[string]int64, 10)
+
 	for metricsName, newValue := range data {
-		err := p.UpdateCounter(ctx, metricsName, newValue)
-		if err != nil {
-			return err
+		portionData[metricsName] = newValue
+
+		if len(portionData) == 10 {
+
+			for pMetricsname, pNewvalue := range portionData {
+				_, err = tx.ExecContext(ctx, QueryInsertCounters, pNewvalue, time.Now(), pMetricsname)
+				if err != nil {
+					return internal.WrapError(err)
+
+				}
+			}
+
+			for k := range portionData {
+				delete(portionData, k)
+			}
 		}
 	}
 
+	for pMetricsname, pNewvalue := range portionData {
+		_, err = tx.ExecContext(ctx, QueryInsertCounters, pNewvalue, time.Now(), pMetricsname)
+		if err != nil {
+			return internal.WrapError(err)
+
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return internal.WrapError(err)
+	}
+
 	return nil
+}
+
+func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.StorageMetrics) (int64, error) {
+
+	conn, err := p.pool.Acquire(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("acquire connection: %w", err)
+	}
+	defer conn.Release()
+
+	batch := new(pgx.Batch)
+
+	batch.Queue("TRUNCATE postgres.gauges")
+	batch.Queue("TRUNCATE postgres.counters")
+	for _, metric := range metrics {
+
+		switch metric.MType {
+		case "gauge":
+
+			batch.Queue(QueryInsertGauges, metric.Value, time.Now(), metric.Name)
+		case "counter":
+			batch.Queue(QueryInsertCounters, metric.Delta, time.Now(), metric.Name)
+		default:
+			return 0, fmt.Errorf("unclown MType " + metric.MType)
+		}
+	}
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return 0, internal.WrapError(err)
+	}
+	result := tx.SendBatch(ctx, batch)
+
+	tag, err := result.Exec()
+	if err != nil {
+		return 0, internal.WrapError(err)
+	}
+
+	err = result.Close()
+	if err != nil {
+		_ = tx.Rollback(ctx)
+		return 0, internal.WrapError(err)
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return 0, internal.WrapError(err)
+	}
+
+	return tag.RowsAffected(), nil
+
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
+	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"os"
 	"strconv"
@@ -14,35 +15,10 @@ import (
 	"time"
 )
 
-type MetricsUpdater interface {
-	UpdateMetric(ctx context.Context, metric models.UntypedMetric) error
-	UpdateTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error)
-	GetMetric(ctx context.Context, metric models.UntypedMetric) (string, error)
-	GetTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error)
-	GetAllMetrics(ctx context.Context) (map[string]map[string]string, error)
-	SaveMetricsToFile(ctx context.Context) error
-	LoadMetricsFromFile(ctx context.Context) error
-	Ping(ctx context.Context) ([]byte, error)
-}
-
-type MetricsStorage struct {
-	Repository Repository
+type Service struct {
+	Repository repository.Repository
 	file       *os.File
 	mutex      sync.Mutex
-}
-
-type Repository interface {
-	UpdateGauge(ctx context.Context, metricsName string, newValue float64) error
-	UpdateCounter(ctx context.Context, metricsName string, newValue int64) error
-	CountGauges(ctx context.Context) int
-	CountCounters(ctx context.Context) int
-	GetGauge(ctx context.Context, metricsName string) (float64, bool, error)
-	GetCounter(ctx context.Context, metricsName string) (int64, bool, error)
-	GetAllGauges(ctx context.Context) (map[string]float64, error)
-	GetAllCounters(ctx context.Context) (map[string]int64, error)
-	ReloadAllGauges(context.Context, map[string]float64) error
-	ReloadAllCounters(context.Context, map[string]int64) error
-	Ping(ctx context.Context) ([]byte, error)
 }
 
 type MetricsFileStorage struct {
@@ -51,7 +27,16 @@ type MetricsFileStorage struct {
 	Date    string
 }
 
-func (s *MetricsStorage) GetAllMetrics(ctx context.Context) (map[string]map[string]string, error) {
+func (s *Service) UpdateTypedMetrics(ctx context.Context, metrics []models.StorageMetrics) (int64, error) {
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.Repository.ReloadAllMetrics(ctx, metrics)
+
+}
+
+func (s *Service) GetAllMetrics(ctx context.Context) (map[string]map[string]string, error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -82,7 +67,7 @@ func (s *MetricsStorage) GetAllMetrics(ctx context.Context) (map[string]map[stri
 	return result, nil
 }
 
-func (s *MetricsStorage) UpdateTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error) {
+func (s *Service) UpdateTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -135,7 +120,7 @@ func (s *MetricsStorage) UpdateTypedMetric(ctx context.Context, metric models.St
 	return &result, nil
 
 }
-func (s *MetricsStorage) UpdateMetric(ctx context.Context, metric models.UntypedMetric) error {
+func (s *Service) UpdateMetric(ctx context.Context, metric models.UntypedMetric) error {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -180,7 +165,7 @@ func (s *MetricsStorage) UpdateMetric(ctx context.Context, metric models.Untyped
 	return nil
 }
 
-func (s *MetricsStorage) GetTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error) {
+func (s *Service) GetTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -225,7 +210,7 @@ func (s *MetricsStorage) GetTypedMetric(ctx context.Context, metric models.Stora
 	}
 }
 
-func (s *MetricsStorage) GetMetric(ctx context.Context, metric models.UntypedMetric) (string, error) {
+func (s *Service) GetMetric(ctx context.Context, metric models.UntypedMetric) (string, error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -261,7 +246,7 @@ func (s *MetricsStorage) GetMetric(ctx context.Context, metric models.UntypedMet
 	}
 }
 
-func (s *MetricsStorage) SaveMetricsToFile(ctx context.Context) error {
+func (s *Service) SaveMetricsToFile(ctx context.Context) error {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -303,7 +288,7 @@ func (s *MetricsStorage) SaveMetricsToFile(ctx context.Context) error {
 
 }
 
-func (s *MetricsStorage) LoadMetricsFromFile(ctx context.Context) error {
+func (s *Service) LoadMetricsFromFile(ctx context.Context) error {
 
 	metricsForFile := &MetricsFileStorage{}
 
@@ -344,7 +329,7 @@ func (s *MetricsStorage) LoadMetricsFromFile(ctx context.Context) error {
 
 }
 
-func (s *MetricsStorage) Ping(ctx context.Context) ([]byte, error) {
+func (s *Service) Ping(ctx context.Context) ([]byte, error) {
 
 	return s.Repository.Ping(ctx)
 

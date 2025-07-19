@@ -16,6 +16,9 @@ func Router(h *handlers.MetricsHandler) chi.Router {
 		r.Post("/", h.UpdateMetricJSON)
 		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", h.UpdateMetric)
 	})
+	router.Route("/updates", func(r chi.Router) {
+		r.Post("/", h.UpdateMetricsBatch)
+	})
 	router.Route("/value", func(r chi.Router) {
 		r.Post("/", h.GetTypedMetric)
 		r.Get("/{MetricsType}/{MetricsName}", h.GetMetric)

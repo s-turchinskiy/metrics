@@ -22,3 +22,8 @@ type UntypedMetric struct {
 	MetricsName  string
 	MetricsValue string
 }
+
+type DatabaseTableGauges struct {
+	MetricsName string  `db:"metrics_name"`
+	Value       float64 `db:"value"`
+}

@@ -1,10 +1,40 @@
 package memcashed
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/server/models"
+)
 
 type MemCashed struct {
 	Gauge   map[string]float64
 	Counter map[string]int64
+}
+
+func (m *MemCashed) ReloadAllMetrics(ctx context.Context, metrics []models.StorageMetrics) (int64, error) {
+
+	m.Gauge = make(map[string]float64)
+	m.Counter = make(map[string]int64)
+
+	for _, metric := range metrics {
+		switch metric.MType {
+		case "gauge":
+			err := m.UpdateGauge(ctx, metric.Name, *metric.Value)
+			if err != nil {
+				return 0, err
+			}
+		case "counter":
+			err := m.UpdateCounter(ctx, metric.Name, *metric.Delta)
+			if err != nil {
+				return 0, err
+			}
+		default:
+			return 0, fmt.Errorf("unclown MType " + metric.MType)
+
+		}
+
+	}
+	return int64(len(m.Gauge) + len(m.Counter)), nil
 }
 
 func (m *MemCashed) Ping(ctx context.Context) ([]byte, error) {
