@@ -151,10 +151,10 @@ func ReportMetricsBatch(h *MetricsHandler, errors chan error) {
 		if err != nil {
 
 			var bytes []byte
-			bytes, err := json.Marshal(metrics)
-			if err != nil {
+			bytes, err2 := json.Marshal(metrics)
+			if err2 != nil {
 				logger.Log.Infow("conversion error metric",
-					"error", err.Error(),
+					"error", err2.Error(),
 					"url", url,
 				)
 			}
