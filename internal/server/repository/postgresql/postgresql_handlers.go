@@ -327,10 +327,15 @@ func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.Stor
 		}
 	}
 
+	if batch.Len() == 0 {
+		return 0, nil
+	}
+
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return 0, internal.WrapError(err)
 	}
+
 	result := tx.SendBatch(ctx, batch)
 
 	tag, err := result.Exec()
