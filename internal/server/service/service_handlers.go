@@ -95,10 +95,12 @@ func (s *Service) UpdateTypedMetric(ctx context.Context, metric models.StorageMe
 		if err != nil {
 			return nil, err
 		}
-		*result.Delta, _, err = s.Repository.GetCounter(ctx, metric.Name)
+		value, _, err := s.Repository.GetCounter(ctx, metric.Name)
 		if err != nil {
 			return nil, err
 		}
+
+		result.Delta = &value
 
 	default:
 		return nil, errMetricsTypeNotFound
