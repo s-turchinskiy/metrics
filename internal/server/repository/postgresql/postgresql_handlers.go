@@ -319,9 +319,9 @@ func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.Stor
 
 		switch metric.MType {
 		case "gauge":
-			batch.Queue(QueryInsertUpdateGauge, metric.Name, metric.Value, time.Now())
+			batch.Queue(QueryInsertUpdateGauge, metric.Name, &metric.Value, time.Now())
 		case "counter":
-			batch.Queue(QueryInsertUpdateCounter, metric.Name, metric.Delta, time.Now())
+			batch.Queue(QueryInsertUpdateCounter, metric.Name, &metric.Delta, time.Now())
 		default:
 			return 0, fmt.Errorf("unclown MType %s", metric.MType)
 		}

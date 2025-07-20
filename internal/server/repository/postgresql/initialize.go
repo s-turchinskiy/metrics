@@ -31,7 +31,7 @@ const (
 	queryCreateTableCounters = `CREATE TABLE IF NOT EXISTS %s.counters (
     id SERIAL PRIMARY KEY,
     metrics_name TEXT NOT NULL UNIQUE,
-    value INT,
+    value bigint,
     updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     )`
 )
@@ -63,8 +63,8 @@ func Initialize(ctx context.Context) (repository.Repository, error) {
 	p := &PostgreSQL{db: db, pool: pool}
 	p.tableSchema = "postgres"
 
-	/*p.db.ExecContext(ctx, "DROP TABLE IF EXISTS postgres.counters")
-	p.db.ExecContext(ctx, "DROP TABLE IF EXISTS postgres.gauges")*/
+	p.db.ExecContext(ctx, "DROP TABLE IF EXISTS postgres.counters")
+	p.db.ExecContext(ctx, "DROP TABLE IF EXISTS postgres.gauges")
 
 	err = p.LoggingStateDatabase(ctx)
 	if err != nil {
