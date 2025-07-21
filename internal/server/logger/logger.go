@@ -83,7 +83,7 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 
 func Logger(next http.Handler) http.Handler {
 	logFn := func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
+		//start := time.Now()
 
 		responseData := &responseData{
 			status: 0,
@@ -95,7 +95,7 @@ func Logger(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(&lw, r)
 
-		duration := time.Since(start)
+		/*duration := time.Since(start)
 
 		Log.Debugln(
 			"uri", r.RequestURI,
@@ -103,7 +103,7 @@ func Logger(next http.Handler) http.Handler {
 			"status", responseData.status,
 			"duration", duration,
 			"size", responseData.size,
-		)
+		)*/
 	}
 	return http.HandlerFunc(logFn)
 }
