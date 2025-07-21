@@ -115,19 +115,17 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 			return
 		}
 
-		result := make(chan error, len(metrics))
+		result := make(chan error)
 		wg := sync.WaitGroup{}
 		wg.Add(len(metrics))
 
 		for _, metric := range metrics {
 			go func() {
-				err = ReportMetric(client, h.ServerAddress, metric)
-				wg.Done()
-				result <- err
-				if err != nil {
-					errorsChan <- err
-					return
-				}
+				reportMetricSeveralAttempts(client, h.ServerAddress, metric, result, &wg)
+				//wg.Done()
+				/*if err != nil {
+					result <- err
+				}*/
 			}()
 		}
 
@@ -136,9 +134,7 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 
 		var errs []error
 		for err = range result {
-			if err != nil {
-				errs = append(errs, err)
-			}
+			errs = append(errs, err)
 		}
 
 		if len(errs) != 0 {
@@ -149,6 +145,39 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 		logger.Log.Info("Success ReportMetrics")
 
 	}
+}
+
+func reportMetricSeveralAttempts(client *resty.Client, serverAddress string, metric models.Metrics, result chan error, wg *sync.WaitGroup) {
+
+	defer wg.Done()
+	logger.Log.Debugw("ReportMetric. attempt 1", "data", metric)
+
+	err := ReportMetric(client, serverAddress, metric)
+	if itIsErrorConnectionRefused(err) {
+		logger.Log.Infow("ReportMetric, server is not responding. attempt 2", "data", metric)
+		time.Sleep(1 * time.Second)
+		err = ReportMetric(client, serverAddress, metric)
+		if itIsErrorConnectionRefused(err) {
+			logger.Log.Infow("ReportMetric, server is not responding. attempt 3", "data", metric)
+			time.Sleep(3 * time.Second)
+			err = ReportMetric(client, serverAddress, metric)
+			if itIsErrorConnectionRefused(err) {
+				logger.Log.Infow("ReportMetric, server is not responding. attempt 4", "data", metric)
+				time.Sleep(5 * time.Second)
+				err = ReportMetric(client, serverAddress, metric)
+			}
+		}
+	}
+
+	if err != nil {
+		result <- err
+	}
+
+}
+
+func itIsErrorConnectionRefused(err error) bool {
+	return err != nil &&
+		(strings.Contains(err.Error(), "connect: connection refused")) // || strings.Contains(err.Error(), "connection reset by peer"))
 }
 
 func ReportMetricsBatch(h *MetricsHandler, errors chan error) {
