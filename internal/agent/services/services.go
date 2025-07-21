@@ -119,12 +119,14 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 		wg.Add(len(metrics))
 
 		for _, metric := range metrics {
-			err = ReportMetric(client, h.ServerAddress, metric)
-			if err != nil {
-				errorsChan <- err
-				return
-			}
-			wg.Done()
+			go func() {
+				err = ReportMetric(client, h.ServerAddress, metric)
+				wg.Done()
+				if err != nil {
+					errorsChan <- err
+					return
+				}
+			}()
 		}
 
 		wg.Wait()
