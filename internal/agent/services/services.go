@@ -85,7 +85,7 @@ func reportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 			"error", text,
 			"url", url,
 			"body", string(bytes))
-		return nil
+		return err
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -138,7 +138,8 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 		}
 
 		if len(errs) != 0 {
-			errorsChan <- errors.Join(errs...)
+			logger.Log.Info("errors sending data ", errors.Join(errs...))
+			//errorsChan <- errors.Join(errs...)
 			return
 		}
 
@@ -174,10 +175,8 @@ func reportMetricSeveralAttempts(client *resty.Client, serverAddress string, met
 
 func itIsErrorConnectionRefused(err error) bool {
 
-	return false
-	//не проходят тесты
-	/*return err != nil &&
-	(strings.Contains(err.Error(), "connect: connection refused")) // || strings.Contains(err.Error(), "connection reset by peer"))*/
+	return err != nil &&
+	(strings.Contains(err.Error(), "connect: connection refused")) || strings.Contains(err.Error(), "connection reset by peer"))
 }
 
 func ReportMetricsBatch(h *MetricsHandler, errors chan error) {
