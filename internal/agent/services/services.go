@@ -139,8 +139,6 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 
 		if len(errs) != 0 {
 			logger.Log.Info("errors sending data ", errors.Join(errs...))
-			//errorsChan <- errors.Join(errs...)
-			return
 		}
 
 		logger.Log.Info("Success ReportMetrics")
