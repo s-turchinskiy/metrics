@@ -124,7 +124,7 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 		var errs []error
 
 		for _, metric := range metrics {
-			go reportMetricSeveralAttempts(client, h.ServerAddress, metric, result, &wg)
+			reportMetricSeveralAttempts(client, h.ServerAddress, metric, result, &wg)
 		}
 
 		wg.Wait()
