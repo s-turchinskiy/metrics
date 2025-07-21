@@ -72,10 +72,10 @@ func reportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 
 		text := err.Error()
 		var bytes []byte
-		bytes, err := json.Marshal(metric)
-		if err != nil {
+		bytes, err2 := json.Marshal(metric)
+		if err2 != nil {
 			logger.Log.Infow("conversion error metric",
-				"error", err.Error(),
+				"error", err2.Error(),
 				"url", url,
 			)
 		}
@@ -115,17 +115,14 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 			return
 		}
 
-		result := make(chan error)
+		result := make(chan error, len(metrics))
 		wg := sync.WaitGroup{}
 		wg.Add(len(metrics))
 
 		for _, metric := range metrics {
 			go func() {
 				defer wg.Done()
-				err = reportMetricSeveralAttempts(client, h.ServerAddress, metric)
-				if err != nil {
-					result <- err
-				}
+				result <- reportMetricSeveralAttempts(client, h.ServerAddress, metric)
 			}()
 		}
 
@@ -134,7 +131,9 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 
 		var errs []error
 		for err = range result {
-			errs = append(errs, err)
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 
 		if len(errs) != 0 {
