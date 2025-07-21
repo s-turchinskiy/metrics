@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/s-turchinskiy/metrics/internal"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
@@ -17,7 +19,7 @@ import (
 const (
 	QueryInsertUpdateCounter = `
 	INSERT INTO postgres.counters (metrics_name, value, updated) 
-	VALUES ($1, $2, $3)
+	VALUES ($1, $2, $3)111
 	ON CONFLICT (metrics_name) DO UPDATE SET
 			value = EXCLUDED.value + counters.value,
 			updated = EXCLUDED.updated`
@@ -62,6 +64,11 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 
 	_, err := p.db.ExecContext(ctx, QueryInsertUpdateCounter, metricsName, newValue, time.Now())
 	if err != nil {
+		var pgErr *pgconn.PgError
+		errors.As(err, &pgErr)
+		if pgerrcode.IsSyntaxErrororAccessRuleViolation(pgErr.Code) {
+			return internal.WrapError(fmt.Errorf("%w syntax error in request QueryInsertUpdateCounter", err))
+		}
 		return internal.WrapError(err)
 	}
 

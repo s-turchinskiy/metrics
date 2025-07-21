@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -60,21 +61,23 @@ type MetricsHandler struct {
 	ServerAddress string
 }
 
-func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
+func reportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
 
 	url := fmt.Sprintf("%s/update/", ServerAddress)
-	resp, err := client.R().
+	request := client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody(metric).
-		Post(url)
+		SetBody(metric)
+
+	resp, err := request.Post(url)
+
 	if err != nil {
 
 		text := err.Error()
 		var bytes []byte
-		bytes, err := json.Marshal(metric)
-		if err != nil {
+		bytes, err2 := json.Marshal(metric)
+		if err2 != nil {
 			logger.Log.Infow("conversion error metric",
-				"error", err.Error(),
+				"error", err2.Error(),
 				"url", url,
 			)
 		}
@@ -100,7 +103,7 @@ func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 
 }
 
-func ReportMetrics(h *MetricsHandler, errors chan error) {
+func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 
 	ticker := time.NewTicker(time.Duration(ReportInterval) * time.Second)
 	for range ticker.C {
@@ -108,23 +111,69 @@ func ReportMetrics(h *MetricsHandler, errors chan error) {
 		client := resty.New()
 
 		metrics, err := h.Storage.GetMetrics()
+
 		if err != nil {
 			logger.Log.Infoln("failed to report metrics", err.Error())
-			errors <- err
+			errorsChan <- err
 			return
 		}
 
+		wg := sync.WaitGroup{}
+		wg.Add(len(metrics))
+		result := make(chan error, len(metrics))
+		var errs []error
+
 		for _, metric := range metrics {
-			err := ReportMetric(client, h.ServerAddress, metric)
+			go reportMetricSeveralAttempts(client, h.ServerAddress, metric, result, &wg)
+		}
+
+		wg.Wait()
+		close(result)
+
+		for err = range result {
 			if err != nil {
-				errors <- err
-				return
+				errs = append(errs, err)
 			}
 		}
 
+		if len(errs) != 0 {
+			errorsChan <- errors.Join(errs...)
+			return
+		}
 		logger.Log.Info("Success ReportMetrics")
 
 	}
+
+}
+
+func reportMetricSeveralAttempts(client *resty.Client, serverAddress string, metric models.Metrics, result chan error, wg *sync.WaitGroup) {
+
+	defer wg.Done()
+	logger.Log.Debugw("ReportMetric, server is not responding. attempt 1", "data", metric)
+
+	err := reportMetric(client, serverAddress, metric)
+	if itIsErrorConnectionRefused(err) {
+		logger.Log.Infow("ReportMetric, server is not responding. attempt 2", "data", metric)
+		time.Sleep(1 * time.Second)
+		err = reportMetric(client, serverAddress, metric)
+		if itIsErrorConnectionRefused(err) {
+			logger.Log.Infow("ReportMetric, server is not responding. attempt 3", "data", metric)
+			time.Sleep(3 * time.Second)
+			err = reportMetric(client, serverAddress, metric)
+			if itIsErrorConnectionRefused(err) {
+				logger.Log.Infow("ReportMetric, server is not responding. attempt 4", "data", metric)
+				time.Sleep(5 * time.Second)
+				err = reportMetric(client, serverAddress, metric)
+			}
+		}
+	}
+
+	result <- err
+
+}
+
+func itIsErrorConnectionRefused(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "connect: connection refused")
 }
 
 func ReportMetricsBatch(h *MetricsHandler, errors chan error) {

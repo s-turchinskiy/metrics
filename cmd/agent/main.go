@@ -24,13 +24,13 @@ func main() {
 		ServerAddress: "http://" + addr.String(),
 	}
 
-	errors := make(chan error)
+	errorsChan := make(chan error)
 
-	go services.UpdateMetrics(metricsHandler, errors)
-	go services.ReportMetrics(metricsHandler, errors)
+	go services.UpdateMetrics(metricsHandler, errorsChan)
+	go services.ReportMetrics(metricsHandler, errorsChan)
 	//go services.ReportMetricsBatch(metricsHandler, errors)
 
-	err := <-errors
+	err := <-errorsChan
 	log.Fatal(err)
 
 }

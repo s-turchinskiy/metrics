@@ -2,6 +2,7 @@ package memcashed
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 )
@@ -16,17 +17,19 @@ func (m *MemCashed) ReloadAllMetrics(ctx context.Context, metrics []models.Stora
 	m.Gauge = make(map[string]float64)
 	m.Counter = make(map[string]int64)
 
+	var errs []error
+
 	for _, metric := range metrics {
 		switch metric.MType {
 		case "gauge":
 			err := m.UpdateGauge(ctx, metric.Name, *metric.Value)
 			if err != nil {
-				return 0, err
+				errs = append(errs, err)
 			}
 		case "counter":
 			err := m.UpdateCounter(ctx, metric.Name, *metric.Delta)
 			if err != nil {
-				return 0, err
+				errs = append(errs, err)
 			}
 		default:
 			return 0, fmt.Errorf("unclown MType %s", metric.MType)
@@ -34,7 +37,8 @@ func (m *MemCashed) ReloadAllMetrics(ctx context.Context, metrics []models.Stora
 		}
 
 	}
-	return int64(len(m.Gauge) + len(m.Counter)), nil
+
+	return int64(len(m.Gauge) + len(m.Counter)), errors.Join(errs...)
 }
 
 func (m *MemCashed) Ping(ctx context.Context) ([]byte, error) {
