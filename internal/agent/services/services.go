@@ -100,7 +100,7 @@ func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 
 }
 
-func ReportMetrics(h *MetricsHandler, errors chan error) {
+func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 
 	ticker := time.NewTicker(time.Duration(ReportInterval) * time.Second)
 	for range ticker.C {
@@ -110,14 +110,14 @@ func ReportMetrics(h *MetricsHandler, errors chan error) {
 		metrics, err := h.Storage.GetMetrics()
 		if err != nil {
 			logger.Log.Infoln("failed to report metrics", err.Error())
-			errors <- err
+			errorsChan <- err
 			return
 		}
 
 		for _, metric := range metrics {
-			err := ReportMetric(client, h.ServerAddress, metric)
+			err = ReportMetric(client, h.ServerAddress, metric)
 			if err != nil {
-				errors <- err
+				errorsChan <- err
 				return
 			}
 		}
