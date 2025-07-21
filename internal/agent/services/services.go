@@ -61,7 +61,7 @@ type MetricsHandler struct {
 	ServerAddress string
 }
 
-func ReportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
+func reportMetric(client *resty.Client, ServerAddress string, metric models.Metrics) error {
 
 	url := fmt.Sprintf("%s/update/", ServerAddress)
 	resp, err := client.R().
@@ -121,11 +121,11 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 
 		for _, metric := range metrics {
 			go func() {
-				reportMetricSeveralAttempts(client, h.ServerAddress, metric, result, &wg)
-				//wg.Done()
-				/*if err != nil {
+				defer wg.Done()
+				err = reportMetricSeveralAttempts(client, h.ServerAddress, metric)
+				if err != nil {
 					result <- err
-				}*/
+				}
 			}()
 		}
 
@@ -147,31 +147,28 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 	}
 }
 
-func reportMetricSeveralAttempts(client *resty.Client, serverAddress string, metric models.Metrics, result chan error, wg *sync.WaitGroup) {
+func reportMetricSeveralAttempts(client *resty.Client, serverAddress string, metric models.Metrics) error {
 
-	defer wg.Done()
-	logger.Log.Debugw("ReportMetric. attempt 1", "data", metric)
+	logger.Log.Debugw("reportMetric. attempt 1", "data", metric)
 
-	err := ReportMetric(client, serverAddress, metric)
+	err := reportMetric(client, serverAddress, metric)
 	if itIsErrorConnectionRefused(err) {
-		logger.Log.Infow("ReportMetric, server is not responding. attempt 2", "data", metric)
+		logger.Log.Infow("reportMetric, server is not responding. attempt 2", "data", metric)
 		time.Sleep(1 * time.Second)
-		err = ReportMetric(client, serverAddress, metric)
+		err = reportMetric(client, serverAddress, metric)
 		if itIsErrorConnectionRefused(err) {
-			logger.Log.Infow("ReportMetric, server is not responding. attempt 3", "data", metric)
+			logger.Log.Infow("reportMetric, server is not responding. attempt 3", "data", metric)
 			time.Sleep(3 * time.Second)
-			err = ReportMetric(client, serverAddress, metric)
+			err = reportMetric(client, serverAddress, metric)
 			if itIsErrorConnectionRefused(err) {
-				logger.Log.Infow("ReportMetric, server is not responding. attempt 4", "data", metric)
+				logger.Log.Infow("reportMetric, server is not responding. attempt 4", "data", metric)
 				time.Sleep(5 * time.Second)
-				err = ReportMetric(client, serverAddress, metric)
+				err = reportMetric(client, serverAddress, metric)
 			}
 		}
 	}
 
-	if err != nil {
-		result <- err
-	}
+	return err
 
 }
 
