@@ -115,6 +115,7 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 			return
 		}
 
+		result := make(chan error, len(metrics))
 		wg := sync.WaitGroup{}
 		wg.Add(len(metrics))
 
@@ -122,6 +123,7 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 			go func() {
 				err = ReportMetric(client, h.ServerAddress, metric)
 				wg.Done()
+				result <- err
 				if err != nil {
 					errorsChan <- err
 					return
@@ -130,6 +132,19 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 		}
 
 		wg.Wait()
+		close(result)
+
+		var errs []error
+		for err = range result {
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		if len(errs) != 0 {
+			errorsChan <- errors.Join(errs...)
+			return
+		}
 
 		logger.Log.Info("Success ReportMetrics")
 
