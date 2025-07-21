@@ -68,6 +68,7 @@ func reportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 		SetHeader("Content-Type", "application/json").
 		SetBody(metric).
 		Post(url)
+
 	if err != nil {
 
 		text := err.Error()
@@ -84,7 +85,7 @@ func reportMetric(client *resty.Client, ServerAddress string, metric models.Metr
 			"error", text,
 			"url", url,
 			"body", string(bytes))
-		return err
+		return nil
 	}
 
 	if resp.StatusCode() != http.StatusOK {
