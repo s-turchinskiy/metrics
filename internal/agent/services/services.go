@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -114,13 +115,19 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 			return
 		}
 
+		wg := sync.WaitGroup{}
+		wg.Add(len(metrics))
+
 		for _, metric := range metrics {
 			err = ReportMetric(client, h.ServerAddress, metric)
 			if err != nil {
 				errorsChan <- err
 				return
 			}
+			wg.Done()
 		}
+
+		wg.Wait()
 
 		logger.Log.Info("Success ReportMetrics")
 
