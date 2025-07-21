@@ -124,7 +124,12 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 		var errs []error
 
 		for _, metric := range metrics {
-			reportMetricSeveralAttempts(client, h.ServerAddress, metric, result, &wg)
+			err = reportMetric(client, h.ServerAddress, metric)
+			wg.Done()
+			if err != nil {
+				errorsChan <- err
+			}
+			//reportMetricSeveralAttempts(client, h.ServerAddress, metric, result, &wg)
 		}
 
 		wg.Wait()
