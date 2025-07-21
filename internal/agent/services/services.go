@@ -176,7 +176,7 @@ func reportMetricSeveralAttempts(client *resty.Client, serverAddress string, met
 func itIsErrorConnectionRefused(err error) bool {
 
 	return err != nil &&
-	(strings.Contains(err.Error(), "connect: connection refused")) || strings.Contains(err.Error(), "connection reset by peer"))
+		(strings.Contains(err.Error(), "connect: connection refused")) || strings.Contains(err.Error(), "connection reset by peer")
 }
 
 func ReportMetricsBatch(h *MetricsHandler, errors chan error) {
