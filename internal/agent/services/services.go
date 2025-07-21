@@ -149,7 +149,7 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 func reportMetricSeveralAttempts(client *resty.Client, serverAddress string, metric models.Metrics, result chan error, wg *sync.WaitGroup) {
 
 	defer wg.Done()
-	logger.Log.Debugw("ReportMetric, server is not responding. attempt 1", "data", metric)
+	logger.Log.Debugw("ReportMetric. attempt 1", "data", metric)
 
 	err := reportMetric(client, serverAddress, metric)
 	if itIsErrorConnectionRefused(err) {
@@ -174,7 +174,7 @@ func reportMetricSeveralAttempts(client *resty.Client, serverAddress string, met
 
 func itIsErrorConnectionRefused(err error) bool {
 	return err != nil &&
-		strings.Contains(err.Error(), "connect: connection refused") || strings.Contains(err.Error(), "connection reset by peer")
+		(strings.Contains(err.Error(), "connect: connection refused") || strings.Contains(err.Error(), "connection reset by peer"))
 }
 
 func ReportMetricsBatch(h *MetricsHandler, errors chan error) {
