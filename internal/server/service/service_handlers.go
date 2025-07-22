@@ -28,7 +28,7 @@ type Service struct {
 
 func New(rep repository.Repository, retryStrategy []time.Duration) *Service {
 
-	if retryStrategy == nil || len(retryStrategy) == 0 {
+	if len(retryStrategy) == 0 {
 		log.Fatal(internal.WrapError(errRetryStrategyIsNotDefined))
 	}
 	return &Service{
