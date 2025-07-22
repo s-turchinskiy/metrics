@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/s-turchinskiy/metrics/internal"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"log"
 	"os"
 	"strconv"
 	"sync"
@@ -29,7 +27,7 @@ type Service struct {
 func New(rep repository.Repository, retryStrategy []time.Duration) *Service {
 
 	if len(retryStrategy) == 0 {
-		log.Fatal(internal.WrapError(errRetryStrategyIsNotDefined))
+		retryStrategy = []time.Duration{0}
 	}
 	return &Service{
 		Repository:    rep,

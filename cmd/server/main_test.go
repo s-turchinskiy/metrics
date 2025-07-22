@@ -178,6 +178,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
 	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
+
 	h := &handlers.MetricsHandler{Service: &service.Service{
 		Repository: &memcashed.MemCashed{
 			Gauge:   map[string]float64{"someMetric": 1.23},
