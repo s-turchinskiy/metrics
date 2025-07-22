@@ -9,20 +9,20 @@ import (
 	"net/http"
 )
 
-type ReportMetricsHttpResty struct {
+type ReportMetricsHTTPResty struct {
 	client        *resty.Client
 	serverAddress string
 }
 
-func New(serverAddress string) *ReportMetricsHttpResty {
+func New(serverAddress string) *ReportMetricsHTTPResty {
 
-	return &ReportMetricsHttpResty{
+	return &ReportMetricsHTTPResty{
 		client:        resty.New(),
 		serverAddress: serverAddress,
 	}
 }
 
-func (r *ReportMetricsHttpResty) Send(metric models.Metrics) error {
+func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 
 	url := fmt.Sprintf("%s/update/", r.serverAddress)
 	resp, err := r.client.R().
