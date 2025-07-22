@@ -17,6 +17,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type OutputAllMetrics struct {
@@ -44,18 +45,20 @@ func NewHandler(ctx context.Context) *MetricsHandler {
 			log.Fatal(err)
 		}
 
-		metricsHandler.Service = &service.Service{
-			Repository: p,
-		}
+		retryStrategy := []time.Duration{
+			0,
+			2 * time.Second,
+			5 * time.Second}
+
+		metricsHandler.Service = service.New(p, retryStrategy)
 
 	} else {
 
-		metricsHandler.Service = &service.Service{
-			Repository: &memcashed.MemCashed{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64),
-			},
+		rep := &memcashed.MemCashed{
+			Gauge:   make(map[string]float64),
+			Counter: make(map[string]int64),
 		}
+		metricsHandler.Service = service.New(rep, []time.Duration{0})
 
 		if settings.Settings.Restore {
 			err := metricsHandler.Service.LoadMetricsFromFile(ctx)

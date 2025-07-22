@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/s-turchinskiy/metrics/internal"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
+	"log"
 	"os"
 	"strconv"
 	"sync"
@@ -16,9 +20,21 @@ import (
 )
 
 type Service struct {
-	Repository repository.Repository
-	file       *os.File
-	mutex      sync.Mutex
+	Repository    repository.Repository
+	retryStrategy []time.Duration
+	file          *os.File
+	mutex         sync.Mutex
+}
+
+func New(rep repository.Repository, retryStrategy []time.Duration) *Service {
+
+	if retryStrategy == nil || len(retryStrategy) == 0 {
+		log.Fatal(internal.WrapError(errRetryStrategyIsNotDefined))
+	}
+	return &Service{
+		Repository:    rep,
+		retryStrategy: retryStrategy,
+	}
 }
 
 type MetricsFileStorage struct {
@@ -32,7 +48,15 @@ func (s *Service) UpdateTypedMetrics(ctx context.Context, metrics []models.Stora
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	return s.Repository.ReloadAllMetrics(ctx, metrics)
+	for _, delay := range s.retryStrategy {
+		time.Sleep(delay)
+		result, err := s.Repository.ReloadAllMetrics(ctx, metrics)
+		if !isConnectionError(err) {
+			return result, err
+		}
+	}
+
+	return 0, errRetryStrategyIsNotDefined
 
 }
 
@@ -43,10 +67,18 @@ func (s *Service) GetAllMetrics(ctx context.Context) (map[string]map[string]stri
 
 	result := make(map[string]map[string]string, 2)
 
-	gauges, err := s.Repository.GetAllGauges(ctx)
-	if err != nil {
-		return nil, err
+	var gauges map[string]float64
+	var err error
+	for _, delay := range s.retryStrategy {
+		time.Sleep(delay)
+		gauges, err = s.Repository.GetAllGauges(ctx)
+		if err == nil {
+			break
+		} else if !isConnectionError(err) {
+			return nil, err
+		}
 	}
+
 	resultGauges := make(map[string]string, len(gauges))
 
 	for name, value := range gauges {
@@ -54,10 +86,17 @@ func (s *Service) GetAllMetrics(ctx context.Context) (map[string]map[string]stri
 	}
 	result["Gauge"] = resultGauges
 
-	counters, err := s.Repository.GetAllCounters(ctx)
-	if err != nil {
-		return nil, err
+	var counters map[string]int64
+	for _, delay := range s.retryStrategy {
+		time.Sleep(delay)
+		counters, err = s.Repository.GetAllCounters(ctx)
+		if err == nil {
+			break
+		} else if !isConnectionError(err) {
+			return nil, err
+		}
 	}
+
 	resultCounters := make(map[string]string, len(counters))
 	for name, value := range counters {
 		resultCounters[name] = strconv.FormatInt(value, 10)
@@ -81,23 +120,44 @@ func (s *Service) UpdateTypedMetric(ctx context.Context, metric models.StorageMe
 		}
 
 		newValue := *metric.Value
-		err := s.Repository.UpdateGauge(ctx, metric.Name, newValue)
-		if err != nil {
-			return nil, err
+
+		for _, delay := range s.retryStrategy {
+			time.Sleep(delay)
+			err := s.Repository.UpdateGauge(ctx, metric.Name, newValue)
+			if err == nil {
+				break
+			} else if !isConnectionError(err) {
+				return nil, err
+			}
 		}
+
 		result.Value = &newValue
 	case "counter":
 
 		if metric.Delta == nil {
 			return &result, fmt.Errorf("delta is not defined")
 		}
-		err := s.Repository.UpdateCounter(ctx, metric.Name, *metric.Delta)
-		if err != nil {
-			return nil, err
+
+		for _, delay := range s.retryStrategy {
+			time.Sleep(delay)
+			err := s.Repository.UpdateCounter(ctx, metric.Name, *metric.Delta)
+			if err == nil {
+				break
+			} else if !isConnectionError(err) {
+				return nil, err
+			}
 		}
-		value, _, err := s.Repository.GetCounter(ctx, metric.Name)
-		if err != nil {
-			return nil, err
+
+		var value int64
+		var err error
+		for _, delay := range s.retryStrategy {
+			time.Sleep(delay)
+			value, _, err = s.Repository.GetCounter(ctx, metric.Name)
+			if err == nil {
+				break
+			} else if !isConnectionError(err) {
+				return nil, err
+			}
 		}
 
 		result.Delta = &value
@@ -158,9 +218,18 @@ func (s *Service) GetTypedMetric(ctx context.Context, metric models.StorageMetri
 	switch metricsType := metric.MType; metricsType {
 	case "gauge":
 
-		value, exist, err := s.Repository.GetGauge(ctx, metric.Name)
-		if err != nil {
-			return nil, err
+		var value float64
+		var exist bool
+		var err error
+
+		for _, delay := range s.retryStrategy {
+			time.Sleep(delay)
+			value, exist, err = s.Repository.GetGauge(ctx, metric.Name)
+			if err == nil {
+				break
+			} else if !isConnectionError(err) {
+				return nil, err
+			}
 		}
 
 		if !exist {
@@ -174,9 +243,18 @@ func (s *Service) GetTypedMetric(ctx context.Context, metric models.StorageMetri
 
 	case "counter":
 
-		value, exist, err := s.Repository.GetCounter(ctx, metric.Name)
-		if err != nil {
-			return nil, err
+		var value int64
+		var exist bool
+		var err error
+
+		for _, delay := range s.retryStrategy {
+			time.Sleep(delay)
+			value, exist, err = s.Repository.GetCounter(ctx, metric.Name)
+			if err == nil {
+				break
+			} else if !isConnectionError(err) {
+				return nil, err
+			}
 		}
 
 		if !exist {
@@ -319,5 +397,18 @@ func (s *Service) Ping(ctx context.Context) ([]byte, error) {
 }
 
 var (
-	errMetricsTypeNotFound = errors.New("metrics type not found")
+	errMetricsTypeNotFound       = errors.New("metrics type not found")
+	errRetryStrategyIsNotDefined = errors.New("retry strategy is not defined")
 )
+
+func isConnectionError(err error) bool {
+
+	if err == nil {
+		return false
+	}
+
+	var pgErr *pgconn.PgError
+	errors.As(err, &pgErr)
+	return pgerrcode.IsConnectionException(pgErr.Code)
+
+}
