@@ -179,12 +179,13 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
 	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
 
-	h := &handlers.MetricsHandler{Service: &service.Service{
-		Repository: &memcashed.MemCashed{
-			Gauge:   map[string]float64{"someMetric": 1.23},
-			Counter: make(map[string]int64),
-		},
-	}}
+	rep := &memcashed.MemCashed{
+		Gauge:   map[string]float64{"someMetric": 1.23},
+		Counter: make(map[string]int64),
+	}
+
+	h := &handlers.MetricsHandler{Service: service.New(rep, nil)}
+
 	handler := gzip.GzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
 
 	test1 := testingcommon.TestPostGzip{Name: "Gauge отправка корректного значения",
