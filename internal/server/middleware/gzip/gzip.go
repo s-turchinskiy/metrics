@@ -12,7 +12,8 @@ var contentTypeForCompress = []string{"application/json", "text/html"}
 
 type compressWriter struct {
 	http.ResponseWriter
-	zw *gzip.Writer
+	zw            *gzip.Writer
+	statusCodeSet bool
 }
 
 func GzipMiddleware(next http.Handler) http.Handler {
@@ -52,7 +53,20 @@ func newCompressWriter(w http.ResponseWriter) *compressWriter {
 	}
 }
 
+func (c *compressWriter) WriteHeader(statusCode int) {
+
+	if statusCode < 300 {
+		c.Header().Set("Content-Encoding", "gzip")
+	}
+	c.ResponseWriter.WriteHeader(statusCode)
+	c.statusCodeSet = true
+}
+
 func (c *compressWriter) Write(p []byte) (int, error) {
+
+	if !c.statusCodeSet {
+		c.Header().Set("Content-Encoding", "gzip")
+	}
 
 	ContentType := c.Header().Get("Content-Type")
 	supportsContentType := slices.Contains(contentTypeForCompress, ContentType)
@@ -61,13 +75,6 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 	}
 
 	return c.ResponseWriter.Write(p)
-}
-
-func (c *compressWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
-		c.Header().Set("Content-Encoding", "gzip")
-	}
-	c.ResponseWriter.WriteHeader(statusCode)
 }
 
 func (c *compressWriter) Close() error {

@@ -2,26 +2,20 @@ package services
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/retrier"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
+	"github.com/s-turchinskiy/metrics/internal/common"
 	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
-)
-
-var (
-	PollInterval   int = 2
-	ReportInterval int = 10
 )
 
 var (
@@ -35,29 +29,6 @@ type MetricsUpdaterReporting interface {
 	GetMetrics() ([]models.Metrics, error)
 }
 
-type NetAddress struct {
-	Host string
-	Port int
-}
-
-func (a *NetAddress) String() string {
-	return a.Host + ":" + strconv.Itoa(a.Port)
-}
-
-func (a *NetAddress) Set(s string) error {
-	hp := strings.Split(s, ":")
-	if len(hp) != 2 {
-		return errors.New("need address in a form host:port")
-	}
-	port, err := strconv.Atoi(hp[1])
-	if err != nil {
-		return err
-	}
-	a.Host = hp[0]
-	a.Port = port
-	return nil
-}
-
 type MetricsHandler struct {
 	Storage       MetricsUpdaterReporting
 	ServerAddress string
@@ -65,7 +36,7 @@ type MetricsHandler struct {
 
 func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 
-	ticker := time.NewTicker(time.Duration(ReportInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
 	for range ticker.C {
 
 		metrics, err := h.Storage.GetMetrics()
@@ -75,9 +46,14 @@ func ReportMetrics(h *MetricsHandler, errorsChan chan error) {
 			return
 		}
 
+		sender := httpresty.New(
+			fmt.Sprintf("%s/update/", h.ServerAddress),
+			common.СomputeHexadecimalSha256Hash,
+		)
+
 		sendMetrics := sendmetrics.New(
 			metrics,
-			httpresty.New(h.ServerAddress),
+			sender,
 			retrier.ReportMetricRetry1{},
 		)
 
@@ -91,7 +67,7 @@ func ReportMetricsBatch(h *MetricsHandler, errors chan error) {
 
 	url := fmt.Sprintf("%s/updates/", h.ServerAddress)
 
-	ticker := time.NewTicker(time.Duration(ReportInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
 	for range ticker.C {
 
 		client := resty.New()
@@ -147,7 +123,7 @@ func ReportMetricsBatch(h *MetricsHandler, errors chan error) {
 
 func UpdateMetrics(h *MetricsHandler, errors chan error) {
 
-	ticker := time.NewTicker(time.Duration(PollInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
 	for range ticker.C {
 
 		metrics, err := GetMetrics()

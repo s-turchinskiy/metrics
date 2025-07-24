@@ -4,59 +4,59 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
-	"github.com/s-turchinskiy/metrics/internal/agent/logger"
+	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
-	"net/http"
+	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
+	"github.com/s-turchinskiy/metrics/internal/common"
 )
 
 type ReportMetricsHTTPResty struct {
-	client        *resty.Client
-	serverAddress string
+	client   *resty.Client
+	url      string
+	hashFunc common.HashFunc
 }
 
-func New(serverAddress string) *ReportMetricsHTTPResty {
+func New(url string, hashFunc common.HashFunc) *ReportMetricsHTTPResty {
 
 	return &ReportMetricsHTTPResty{
-		client:        resty.New(),
-		serverAddress: serverAddress,
+		client:   resty.New(),
+		url:      url,
+		hashFunc: hashFunc,
 	}
 }
 
 func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 
-	url := fmt.Sprintf("%s/update/", r.serverAddress)
-	resp, err := r.client.R().
-		SetHeader("Content-Type", "application/json").
-		SetBody(metric).
-		Post(url)
+	body, err := json.Marshal(metric)
+	if err != nil {
+		return common.WrapError(fmt.Errorf("error json marshal data"))
+	}
+
+	request := r.client.R().
+		SetHeader("Content-Type", "application/json") //.
+	//SetBody(bytes)
+
+	request.Body = body
+
+	if config.HashKey != "" && r.hashFunc != nil {
+
+		hash := r.hashFunc(config.HashKey, body)
+		request.SetHeader("HashSHA256", hash)
+	}
+
+	resp, err := request.Post(r.url)
 
 	if err != nil {
-
-		text := err.Error()
-		var bytes []byte
-		bytes, err2 := json.Marshal(metric)
-		if err2 != nil {
-			logger.Log.Infow("conversion error metric",
-				"error", err2.Error(),
-				"url", url,
-			)
-		}
-
-		logger.Log.Infow("error sending request",
-			"error", text,
-			"url", url,
-			"body", string(bytes))
+		sendmetric.HandlerErrors(err, metric, r.url)
 		return err
 	}
 
-	if resp.StatusCode() != http.StatusOK {
-
-		logger.Log.Infow("error. status code <> 200",
-			"status code", resp.StatusCode(),
-			"url", url,
-			"body", string(resp.Body()))
-		err := fmt.Errorf("status code <> 200, = %d, url : %s", resp.StatusCode(), url)
-		return err
+	if err := sendmetric.CheckResponseStatus(
+		resp.StatusCode(),
+		resp.Body(),
+		r.url,
+	); err != nil {
+		return nil
 	}
 
 	return nil

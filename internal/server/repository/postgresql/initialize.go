@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jmoiron/sqlx"
-	"github.com/s-turchinskiy/metrics/internal"
-	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/common"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"log"
@@ -44,10 +44,10 @@ func Initialize(ctx context.Context) (repository.Repository, error) {
 
 	db, err := sqlx.Open("pgx", addr)
 	if err != nil {
-		return nil, internal.WrapError(err)
+		return nil, common.WrapError(err)
 	}
 	if err := db.PingContext(ctx); err != nil {
-		return nil, internal.WrapError(err)
+		return nil, common.WrapError(err)
 	}
 
 	db.SetConnMaxLifetime(time.Hour)
@@ -57,7 +57,7 @@ func Initialize(ctx context.Context) (repository.Repository, error) {
 
 	pool, err := pgxpool.New(ctx, settings.Settings.Database.String())
 	if err != nil {
-		return nil, internal.WrapError(err)
+		return nil, common.WrapError(err)
 	}
 
 	p := &PostgreSQL{db: db, pool: pool}
@@ -68,27 +68,27 @@ func Initialize(ctx context.Context) (repository.Repository, error) {
 
 	err = p.LoggingStateDatabase(ctx)
 	if err != nil {
-		return nil, internal.WrapError(err)
+		return nil, common.WrapError(err)
 	}
 
 	_, err = p.db.ExecContext(ctx, fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, p.tableSchema))
 	if err != nil {
-		return nil, internal.WrapError(err)
+		return nil, common.WrapError(err)
 	}
 
 	err = p.withLoggingCreatingTable(ctx, "gauges", queryCreateTableGauges)
 	if err != nil {
-		return nil, internal.WrapError(err)
+		return nil, common.WrapError(err)
 	}
 
 	err = p.withLoggingCreatingTable(ctx, "counters", queryCreateTableCounters)
 	if err != nil {
-		return nil, internal.WrapError(err)
+		return nil, common.WrapError(err)
 	}
 
 	err = p.LoggingStateDatabase(ctx)
 	if err != nil {
-		return nil, internal.WrapError(err)
+		return nil, common.WrapError(err)
 	}
 
 	return p, nil
@@ -101,7 +101,7 @@ func (p *PostgreSQL) LoggingStateDatabase(ctx context.Context) error {
 		"SELECT schema_name FROM information_schema.schemata WHERE catalog_name = $1;",
 		settings.Settings.Database.DBName)
 	if err != nil {
-		return internal.WrapError(err)
+		return common.WrapError(err)
 	}
 
 	/*err = p.loggingData(ctx,
@@ -116,7 +116,7 @@ func (p *PostgreSQL) LoggingStateDatabase(ctx context.Context) error {
 		"view tables",
 		"SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')")
 	if err != nil {
-		return internal.WrapError(err)
+		return common.WrapError(err)
 	}
 	return nil
 }
