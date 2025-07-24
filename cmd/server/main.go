@@ -1,18 +1,17 @@
 package main
 
 import (
-	"github.com/go-chi/chi/v5"
+	"context"
+	"github.com/joho/godotenv"
+	"github.com/s-turchinskiy/metrics/internal/server"
+	"github.com/s-turchinskiy/metrics/internal/server/handlers"
 	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 )
-
-type MetricsHandler struct {
-	storage MetricsUpdater
-}
 
 func init() {
 
@@ -24,25 +23,19 @@ func init() {
 
 func main() {
 
-	if err := getSettings(); err != nil {
+	ctx := context.Background()
+
+	err := godotenv.Load("./cmd/server/.env")
+	if err != nil {
+		logger.Log.Debugw("Error loading .env file", "error", err.Error())
+	}
+
+	if err := settings.GetSettings(); err != nil {
 		logger.Log.Errorw("Get Settings error", "error", err.Error())
 		log.Fatal(err)
 	}
 
-	metricsHandler := &MetricsHandler{
-		storage: &MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
-	}
-
-	if settings.Restore {
-		err := metricsHandler.storage.LoadMetricsFromFile()
-		if err != nil {
-			logger.Log.Errorw("LoadMetricsFromFile error", "error", err.Error())
-			log.Fatal(err)
-		}
-	}
+	metricsHandler := handlers.NewHandler(ctx)
 
 	errors := make(chan error)
 
@@ -56,24 +49,24 @@ func main() {
 		}
 	}()
 
-	go saveMetricsToFilePeriodically(metricsHandler, errors)
+	go saveMetricsToFilePeriodically(ctx, metricsHandler, errors)
 
-	err := <-errors
-	metricsHandler.storage.SaveMetricsToFile()
+	err = <-errors
+	metricsHandler.Service.SaveMetricsToFile(ctx)
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	log.Fatal(err)
 }
 
-func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
+func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandler, errors chan error) {
 
-	if !settings.asynchronousWritingDataToFile {
+	if !settings.Settings.AsynchronousWritingDataToFile {
 		return
 	}
 
-	ticker := time.NewTicker(time.Duration(settings.StoreInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(settings.Settings.StoreInterval) * time.Second)
 	for range ticker.C {
 
-		err := h.storage.SaveMetricsToFile()
+		err := h.Service.SaveMetricsToFile(ctx)
 		if err != nil {
 			logger.Log.Infoln("error", err.Error())
 			errors <- err
@@ -82,53 +75,11 @@ func saveMetricsToFilePeriodically(h *MetricsHandler, errors chan error) {
 	}
 }
 
-func run(h *MetricsHandler) error {
+func run(h *handlers.MetricsHandler) error {
 
-	router := chi.NewRouter()
-	router.Use(gzipMiddleware)
-	router.Use(logger.Logger)
-	router.Route("/update", func(r chi.Router) {
-		r.Post("/", h.UpdateMetricJSON)
-		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", h.UpdateMetric)
-	})
-	router.Route("/value", func(r chi.Router) {
-		r.Post("/", h.GetTypedMetric)
-		r.Get("/{MetricsType}/{MetricsName}", h.GetMetric)
-	})
+	router := server.Router(h)
 
-	router.Get(`/`, h.GetAllMetrics)
+	logger.Log.Info("Running server", zap.String("address", settings.Settings.Address.String()))
 
-	logger.Log.Info("Running server", zap.String("address", settings.Address.String()))
-
-	return http.ListenAndServe(settings.Address.String(), router)
-}
-
-func gzipMiddleware(next http.Handler) http.Handler {
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		acceptEncoding := r.Header.Get("Accept-Encoding")
-		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-
-		if supportsGzip {
-			cw := newCompressWriter(w)
-			w = cw
-			defer cw.Close()
-		}
-
-		contentEncoding := r.Header.Get("Content-Encoding")
-		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		if sendsGzip {
-			cr, err := newCompressReader(r.Body)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			r.Body = cr
-			defer cr.Close()
-		}
-
-		next.ServeHTTP(w, r)
-
-	})
+	return http.ListenAndServe(settings.Settings.Address.String(), router)
 }

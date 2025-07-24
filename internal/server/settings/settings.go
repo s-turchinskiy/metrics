@@ -1,4 +1,4 @@
-package main
+package settings
 
 import (
 	"errors"
@@ -14,7 +14,16 @@ import (
 )
 
 const (
-	filenameSettings = "settings.yaml"
+	filenameSettings       = "settings.yaml"
+	filenameSecretSettings = "secretSettings.yaml"
+)
+
+type Store int
+
+const (
+	Memory Store = iota
+	File
+	Database
 )
 
 type ProgramSettings struct {
@@ -22,7 +31,13 @@ type ProgramSettings struct {
 	StoreInterval                 int        `yaml:"STORE_INTERVAL" lc:"интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)"`
 	FileStoragePath               string     `yaml:"FILE_STORAGE_PATH" lc:"путь до файла, куда сохраняются текущие значения"`
 	Restore                       bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
-	asynchronousWritingDataToFile bool
+	Database                      database   `yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
+	AsynchronousWritingDataToFile bool
+	Store                         Store
+}
+
+type SecretSettings struct {
+	DBPassword string `yaml:"DBPassword" lc:"пароль для подключения к базе данных"`
 }
 
 type netAddress struct {
@@ -31,23 +46,48 @@ type netAddress struct {
 }
 
 type database struct {
-	Host     string
-	DBName   string
-	Login    string
-	Password string
+	Host            string
+	DBName          string
+	Login           string
+	Password        string
+	FlagDatabaseDSN string
 }
 
-var settings ProgramSettings
+var Settings ProgramSettings
 
 func (s ProgramSettings) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
 	err := encoder.AddObject("Address", &s.Address)
 	if err != nil {
-		return nil
+		return err
 	}
 	encoder.AddInt("StoreInterval", s.StoreInterval)
 	encoder.AddString("FileStoragePath", s.FileStoragePath)
 	encoder.AddBool("Restore", s.Restore)
+	err = encoder.AddObject("Database", &s.Database)
+	if err != nil {
+		return err
+	}
+
+	encoder.AddBool("AsynchronousWritingDataToFile", s.AsynchronousWritingDataToFile)
+
+	switch s.Store {
+	case Database:
+		{
+			encoder.AddString("Store", "Database")
+		}
+	case File:
+		{
+			encoder.AddString("Store", "File")
+		}
+	case Memory:
+		{
+			encoder.AddString("Store", "Memory")
+		}
+	default:
+		panic("unhandled default case")
+	}
+
 	return err
 }
 
@@ -68,30 +108,40 @@ func (d *database) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
 }
 
-func getSettings() error {
+func GetSettings() error {
 
-	settings = ProgramSettings{
+	Settings = ProgramSettings{
 		Address: netAddress{
 			Host: "localhost", Port: 8080},
 		StoreInterval:   300,
 		FileStoragePath: "store.txt",
 		Restore:         true,
+		Database:        database{Host: "localhost", DBName: "metrics", Login: "metrics"},
 	}
 
-	err := file.ReadSaveYaml(&settings, filenameSettings)
+	err := file.ReadSaveYaml(&Settings, filenameSettings)
 	if err != nil {
 		return err
 	}
 
-	flag.Var(&settings.Address, "a", "Net address host:port")
+	secretSettings := SecretSettings{}
+	err = file.ReadSaveYaml(&secretSettings, filenameSecretSettings)
+
+	if err != nil {
+		return err
+	}
+	Settings.Database.Password = secretSettings.DBPassword
+
+	flag.Var(&Settings.Address, "a", "Net address host:port")
 	//flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
-	flag.IntVar(&settings.StoreInterval, "i", settings.StoreInterval, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
-	flag.StringVar(&settings.FileStoragePath, "f", settings.FileStoragePath, "Путь до файла, куда сохраняются текущие значения")
-	flag.BoolVar(&settings.Restore, "r", settings.Restore, "Определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
+	flag.IntVar(&Settings.StoreInterval, "i", Settings.StoreInterval, "Интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
+	flag.StringVar(&Settings.FileStoragePath, "f", Settings.FileStoragePath, "Путь до файла, куда сохраняются текущие значения")
+	flag.BoolVar(&Settings.Restore, "r", Settings.Restore, "Определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
+	flag.Var(&Settings.Database, "d", "path to database")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
-		err := settings.Address.Set(envAddr)
+		err := Settings.Address.Set(envAddr)
 		if err != nil {
 			return err
 		}
@@ -102,12 +152,12 @@ func getSettings() error {
 		if err != nil {
 			return err
 		}
-		settings.StoreInterval = storeInterval
+		Settings.StoreInterval = storeInterval
 	}
 
 	FileStoragePath := os.Getenv("FILE_STORAGE_PATH")
 	if FileStoragePath != "" {
-		settings.FileStoragePath = FileStoragePath
+		Settings.FileStoragePath = FileStoragePath
 	}
 
 	if value := os.Getenv("RESTORE"); value != "" {
@@ -115,12 +165,30 @@ func getSettings() error {
 		if err != nil {
 			return err
 		}
-		settings.Restore = restore
+		Settings.Restore = restore
 	}
 
-	settings.asynchronousWritingDataToFile = settings.StoreInterval != 0
+	DatabaseDsn := os.Getenv("DATABASE_DSN")
+	logger.Log.Debug("Received DatabaseDsn from env: ", DatabaseDsn)
+	if DatabaseDsn != "" {
+		err := Settings.Database.Set(DatabaseDsn)
+		if err != nil {
+			return err
+		}
+		Settings.Database.FlagDatabaseDSN = DatabaseDsn
+	}
 
-	logger.LogNoSugar.Info("Settings", zap.Inline(settings)) //если Sugar, то выводит без имен
+	Settings.AsynchronousWritingDataToFile = Settings.StoreInterval != 0
+
+	if FileStoragePath != "" || isFlagPassed("f") {
+		Settings.Store = File
+	}
+
+	if DatabaseDsn != "" || isFlagPassed("d") {
+		Settings.Store = Database
+	}
+
+	logger.LogNoSugar.Info("Settings", zap.Inline(Settings)) //если Sugar, то выводит без имен
 	return nil
 }
 
@@ -164,17 +232,19 @@ func (d *database) Set(s string) error {
 	s = strings.Replace(s, ":", " ", 1)
 	s = strings.Replace(s, "@", " ", 1)
 	s = strings.Replace(s, ":", " ", 1)
+	s = strings.Replace(s, "/", " ", 1)
+	s = strings.Replace(s, "?", " ", 1)
 
 	hp := strings.Split(s, " ")
-	if len(hp) < 4 {
+	if len(hp) < 6 {
 		//return errors.New("need address in a form host=%s user=%s password=%s dbname=%s sslmode=disable")
 		return errors.New("incorrect format database-dsn")
 	}
 
-	d.Host = hp[0]
+	d.Host = hp[3]
 	d.Login = hp[1]
 	d.Password = hp[2]
-	d.DBName = hp[3]
+	d.DBName = hp[5]
 
 	return nil
 }

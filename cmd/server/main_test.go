@@ -1,6 +1,14 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"github.com/jmoiron/sqlx"
+	"github.com/s-turchinskiy/metrics/internal/server/gzip"
+	"github.com/s-turchinskiy/metrics/internal/server/handlers"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
+	"github.com/s-turchinskiy/metrics/internal/server/service"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"github.com/s-turchinskiy/metrics/internal/testingcommon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -9,21 +17,31 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 )
 
 type want struct {
 	contentType string
 	statusCode  int
 	response    string
-	storage     MetricsUpdater
+	storage     service.MetricsUpdater
 }
 
 type test struct {
 	name    string
 	method  string
 	request string
-	storage MetricsUpdater
+	storage service.MetricsUpdater
 	want    want
+}
+
+func EmptyService() *service.Service {
+	return &service.Service{
+		Repository: &memcashed.MemCashed{
+			Gauge:   make(map[string]float64),
+			Counter: make(map[string]int64),
+		},
+	}
 }
 
 func TestMetricsHandler_UpdateMetric(t *testing.T) {
@@ -32,15 +50,15 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 		name:    "успешное добавление метрики",
 		method:  http.MethodPost,
 		request: "/update/gauge/someMetric/1.1",
-		storage: &MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64)},
+		storage: EmptyService(),
 		want: want{
-			contentType: contentTypeTextHTML,
+			contentType: handlers.ContentTypeTextHTML,
 			statusCode:  200,
-			storage: &MetricsStorage{
-				Gauge:   map[string]float64{"someMetric": 1.1},
-				Counter: make(map[string]int64),
+			storage: &service.Service{
+				Repository: &memcashed.MemCashed{
+					Gauge:   map[string]float64{"someMetric": 1.1},
+					Counter: make(map[string]int64),
+				},
 			},
 		},
 	},
@@ -48,33 +66,23 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 			name:    "метод Get запрещен",
 			method:  http.MethodGet,
 			request: "/update/gauge/someMetric/1.1",
-			storage: &MetricsStorage{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64)},
+			storage: EmptyService(),
 			want: want{
-				contentType: contentTypeTextHTML,
+				contentType: handlers.ContentTypeTextHTML,
 				statusCode:  http.StatusMethodNotAllowed,
-				storage: &MetricsStorage{
-					Gauge:   make(map[string]float64),
-					Counter: make(map[string]int64),
-				},
+				storage:     EmptyService(),
 			},
 		},
 		{
 			name:    "Значение не float64",
 			method:  http.MethodPost,
 			request: "/update/gauge/someMetric/bad",
-			storage: &MetricsStorage{
-				Gauge:   make(map[string]float64),
-				Counter: make(map[string]int64)},
+			storage: EmptyService(),
 			want: want{
-				contentType: contentTypeTextHTML,
+				contentType: handlers.ContentTypeTextHTML,
 				statusCode:  http.StatusBadRequest,
-				storage: &MetricsStorage{
-					Gauge:   make(map[string]float64),
-					Counter: make(map[string]int64),
-				},
-				response: "MetricsValue = bad, error: strconv.ParseFloat: parsing \"bad\": invalid syntax",
+				storage:     EmptyService(),
+				response:    "MetricsValue = bad, error: strconv.ParseFloat: parsing \"bad\": invalid syntax",
 			},
 		}}
 
@@ -82,8 +90,8 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
-			h := &MetricsHandler{
-				storage: tt.storage,
+			h := &handlers.MetricsHandler{
+				Service: tt.storage,
 			}
 			h.UpdateMetric(w, request)
 
@@ -99,11 +107,11 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 
 			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
 			assert.Equal(t, tt.want.response, string(resBody))
-			//assert.InDeltaMapValues(t, tt.want.storage.(*MetricsStorage).Gauge, tt.storage.(*MetricsStorage).Gauge, 64)
+			//assert.InDeltaMapValues(t, tt.want.storage.(*Service).Gauge, tt.storage.(*Service).Gauge, 64)
 
-			eq := reflect.DeepEqual(tt.want.storage.(*MetricsStorage).Gauge, tt.storage.(*MetricsStorage).Gauge)
+			eq := reflect.DeepEqual(tt.want.storage.(*service.Service).Repository, tt.storage.(*service.Service).Repository)
 			if !eq {
-				t.Error("MetricsStorage are unequal.")
+				t.Error("Service are unequal.")
 			}
 
 		})
@@ -116,11 +124,9 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 		name:    "запрос отсутствующей метрики",
 		method:  http.MethodGet,
 		request: "/value/gauge/someMetric",
-		storage: &MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64)},
+		storage: EmptyService(),
 		want: want{
-			contentType: contentTypeTextHTML,
+			contentType: handlers.ContentTypeTextHTML,
 			statusCode:  http.StatusNotFound,
 			response:    "not found",
 		},
@@ -129,11 +135,14 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 			name:    "запрос присутсвующей метрики",
 			method:  http.MethodGet,
 			request: "/value/gauge/someMetric",
-			storage: &MetricsStorage{
-				Gauge:   map[string]float64{"someMetric": 1.23},
-				Counter: make(map[string]int64)},
+			storage: &service.Service{
+				Repository: &memcashed.MemCashed{
+					Gauge:   map[string]float64{"someMetric": 1.23},
+					Counter: make(map[string]int64),
+				},
+			},
 			want: want{
-				contentType: contentTypeTextHTML,
+				contentType: handlers.ContentTypeTextHTML,
 				statusCode:  http.StatusOK,
 				response:    "1.23",
 			},
@@ -144,8 +153,8 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.request, nil)
 			w := httptest.NewRecorder()
-			h := &MetricsHandler{
-				storage: tt.storage,
+			h := &handlers.MetricsHandler{
+				Service: tt.storage,
 			}
 			h.GetMetric(w, request)
 
@@ -168,11 +177,16 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 
 func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
-	settings = ProgramSettings{Restore: false, asynchronousWritingDataToFile: true}
-	h := &MetricsHandler{storage: &MetricsStorage{
+	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
+
+	rep := &memcashed.MemCashed{
 		Gauge:   map[string]float64{"someMetric": 1.23},
-		Counter: make(map[string]int64)}}
-	handler := gzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
+		Counter: make(map[string]int64),
+	}
+
+	h := &handlers.MetricsHandler{Service: service.New(rep, nil)}
+
+	handler := gzip.GzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
 
 	test1 := testingcommon.TestPostGzip{Name: "Gauge отправка корректного значения",
 		ResponseCode: 200,
@@ -243,14 +257,17 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 
 func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 
-	settings = ProgramSettings{Restore: false, asynchronousWritingDataToFile: true}
+	settings.Settings = settings.ProgramSettings{Restore: false, AsynchronousWritingDataToFile: true}
 
-	h := &MetricsHandler{storage: &MetricsStorage{
+	rep := &memcashed.MemCashed{
 		Gauge:   map[string]float64{"someMetric": 1.23},
-		Counter: make(map[string]int64)}}
+		Counter: make(map[string]int64),
+	}
+
+	h := &handlers.MetricsHandler{Service: service.New(rep, nil)}
 
 	//handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
-	handler := gzipMiddleware(http.HandlerFunc(h.GetTypedMetric))
+	handler := gzip.GzipMiddleware(http.HandlerFunc(h.GetTypedMetric))
 
 	test1 := testingcommon.TestPostGzip{Name: "Gauge проверка присутствующего значения",
 		ResponseCode: 200,
@@ -283,4 +300,94 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 	tests := []testingcommon.TestPostGzip{test1, test2}
 	testingcommon.TestGzipCompression(t, handler, tests)
 
+}
+
+func TestInspectDatabase(t *testing.T) {
+
+	/*settings.GetSettings()
+	settings.Settings.Store = settings.Database
+	ctx := context.Background()
+	dbconn := sqlx.MustOpen("pgx", settings.Settings.Database.String())
+	if err := dbconn.PingContext(ctx); err != nil {
+		log.Fatal(err)
+	}
+
+	suite := suite.Suite{}
+	id := "PopulateCounter" + strconv.Itoa(rand.Intn(256*256*256))
+
+	httpc := resty.New().SetBaseURL(settings.Settings.Address.String())
+
+	suite.Run("populate counter", func() {
+		req := httpc.R().
+			SetHeader("Content-Type", "application/json")
+
+		var value int64
+		resp, err := req.
+			SetBody(
+				&models.Metrics{
+					ID:    id,
+					MType: "counter",
+					Delta: &value,
+				}).
+			Post("update/")
+
+		dumpErr := suite.Assert().NoError(err,
+			"Ошибка при попытке сделать запрос с обновлением counter")
+		dumpErr = dumpErr && suite.Assert().Equalf(http.StatusOK, resp.StatusCode(),
+			"Несоответствие статус кода ответа ожидаемому в хендлере %q: %q ", req.Method, req.URL)
+		dumpErr = dumpErr && suite.Assert().NoError(err, "Ошибка при попытке сделать запрос для сокращения URL")
+
+		if !dumpErr {
+			log.Fatal(dumpErr)
+		}
+	})
+
+	suite.Run("delay", func() {
+		time.Sleep(5 * time.Second)
+	})
+
+	suite.Run("inspect", func() {
+		suite.Require().NotNil(dbconn,
+			"Невозможно проинспектировать базу данных, нет подключения")
+
+		tables, err := fetchTables(dbconn)
+		suite.Require().NoError(err,
+			"Ошибка получения списка таблиц базы данных")
+		suite.Require().NotEmpty(tables,
+			"Не найдено ни одной пользовательской таблицы в БД")
+
+	})*/
+}
+
+func fetchTables(dbconn *sqlx.DB) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	query := `
+		SELECT
+			table_schema || '.' || table_name
+		FROM information_schema.tables
+		WHERE
+			table_schema NOT IN ('pg_catalog', 'information_schema')
+	`
+
+	rows, err := dbconn.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось выполнить запрос листинга таблиц: %w", err)
+	}
+	defer rows.Close()
+
+	var tables []string
+	for rows.Next() {
+		var tablename string
+		if err := rows.Scan(&tablename); err != nil {
+			return nil, fmt.Errorf("не удалось получить строку результата: %w", err)
+		}
+		tables = append(tables, tablename)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка обработки курсора базы данных: %w", err)
+	}
+	return tables, nil
 }

@@ -28,3 +28,5 @@ metricstest
 agent.log
 server.log
 store.txt
+secretSettings.yaml
+.env
