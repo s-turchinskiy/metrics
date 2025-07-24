@@ -33,10 +33,8 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 	}
 
 	request := r.client.R().
-		SetHeader("Content-Type", "application/json") //.
-	//SetBody(bytes)
-
-	request.Body = body
+		SetHeader("Content-Type", "application/json").
+		SetBody(body)
 
 	if config.HashKey != "" && r.hashFunc != nil {
 

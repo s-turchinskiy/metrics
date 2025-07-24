@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mailru/easyjson"
+	"github.com/s-turchinskiy/metrics/internal/common"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
@@ -14,6 +15,7 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -161,7 +163,15 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 
 	var req models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Log.Info("cannot decode request JSON body", zap.Error(err))
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			logger.Log.Info("cannot decode request JSON body", zap.Error(common.WrapError(err)))
+			logger.Log.Debugw(common.WrapError(fmt.Errorf("error read body")).Error())
+			return
+		}
+		logger.Log.Info("cannot decode request JSON body", zap.Error(common.WrapError(err)), zap.String("body", string(body)))
+
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

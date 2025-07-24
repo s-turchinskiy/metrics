@@ -1,6 +1,7 @@
 package hash
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"encoding/hex"
 	"fmt"
@@ -36,19 +37,24 @@ func HashReadMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		body, err := io.ReadAll(r.Body)
+		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			logger.Log.Debugw(common.WrapError(fmt.Errorf("error read body")).Error())
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		expectedHash := common.СomputeSha256Hash(settings.Settings.HashKey, body)
+		r.Body.Close()
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		expectedHash := common.СomputeSha256Hash(settings.Settings.HashKey, bodyBytes)
 
 		if !hmac.Equal(requestHash, expectedHash) {
 			http.Error(w, "Invalid request hash", http.StatusBadRequest)
 			return
 		}
+
+		next.ServeHTTP(w, r)
 	}
 
 	return http.HandlerFunc(hashFn)
