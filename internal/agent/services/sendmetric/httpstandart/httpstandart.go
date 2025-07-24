@@ -34,7 +34,7 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 	}
 
 	client := new(http.Client)
-	request, err := http.NewRequest("POST", r.url, bytes.NewReader(data))
+	request, _ := http.NewRequest("POST", r.url, bytes.NewReader(data))
 	request.Header.Add("Content-Type", "application/json")
 
 	if config.HashKey != "" && r.hashFunc != nil {
@@ -55,6 +55,8 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 		logger.Log.Debugw(common.WrapError(fmt.Errorf("error read body")).Error())
 		return err
 	}
+
+	resp.Body.Close()
 
 	if err := sendmetric.CheckResponseStatus(
 		resp.StatusCode,
