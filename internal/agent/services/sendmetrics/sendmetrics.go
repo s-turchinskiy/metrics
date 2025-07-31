@@ -6,30 +6,55 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/retrier"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
-	"sync"
 )
 
 type MetricsSender interface {
-	Send() []error
-	ErrorHandling([]error)
+	WorkerSender()
+	ResultHandling()
 }
 
 type SendMetrics struct {
 	MetricsSender
+	numJobs int
+	jobs    <-chan models.Metrics
+	results chan error
+	done    chan struct{}
 	sender  sendmetric.MetricSender
 	retrier retrier.ReportMetricRetrier
-	metrics []models.Metrics
 }
 
-func New(metrics []models.Metrics, sender sendmetric.MetricSender, retrier retrier.ReportMetricRetrier) *SendMetrics {
+func New(
+	jobs <-chan models.Metrics,
+	done chan struct{},
+	sender sendmetric.MetricSender,
+	retrier retrier.ReportMetricRetrier) *SendMetrics {
+
 	return &SendMetrics{
-		metrics: metrics,
+		numJobs: cap(jobs),
+		jobs:    jobs,
+		results: make(chan error, cap(jobs)),
+		done:    done,
 		sender:  sender,
 		retrier: retrier,
 	}
 }
 
-func (s *SendMetrics) ErrorHandling(errs []error) {
+func (s *SendMetrics) ResultHandling() {
+
+	var err error
+	var errs []error
+	for a := 1; a <= s.numJobs; a++ {
+		select {
+		case <-s.done:
+			return
+		case err = <-s.results:
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	close(s.results)
 
 	if len(errs) != 0 {
 		logger.Log.Info("Unsuccess ReportMetrics")
@@ -39,33 +64,20 @@ func (s *SendMetrics) ErrorHandling(errs []error) {
 	}
 
 }
-func (s *SendMetrics) Send() []error {
 
-	result := make(chan error, len(s.metrics))
-	wg := sync.WaitGroup{}
-	wg.Add(len(s.metrics))
+func (s *SendMetrics) WorkerSender() {
 
-	for _, metric := range s.metrics {
-		go func() {
-			defer wg.Done()
+	for metric := range s.jobs {
+
+		select {
+		case <-s.done:
+			return
+		default:
 			if s.retrier != nil {
-				result <- s.retrier.SendWithRetries(metric, s.sender.Send)
+				s.results <- s.retrier.SendWithRetries(metric, s.sender.Send)
 			} else {
-				result <- s.sender.Send(metric)
+				s.results <- s.sender.Send(metric)
 			}
-		}()
-	}
-
-	wg.Wait()
-	close(result)
-
-	var errs []error
-	for err := range result {
-		if err != nil {
-			errs = append(errs, err)
 		}
 	}
-
-	return errs
-
 }

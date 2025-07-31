@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -18,6 +19,7 @@ var (
 	PollInterval   int = 2
 	ReportInterval int = 10
 	HashKey        string
+	RateLimit      int //количество одновременно исходящих запросов на сервер
 )
 
 func ParseFlags(addr *NetAddress) {
@@ -26,6 +28,7 @@ func ParseFlags(addr *NetAddress) {
 	flag.IntVar(&PollInterval, "p", 2, "poll interval")
 	flag.IntVar(&ReportInterval, "r", 10, "report interval")
 	flag.StringVar(&HashKey, "k", "", "HashSHA256 key")
+	flag.IntVar(&RateLimit, "l", runtime.NumCPU(), "number of concurrently outgoing requests to server")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
@@ -51,6 +54,15 @@ func ParseFlags(addr *NetAddress) {
 		}
 
 		ReportInterval = value
+	}
+
+	if valueStr := os.Getenv("RATE_LIMIT"); valueStr != "" {
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		RateLimit = value
 	}
 
 	if value := os.Getenv("KEY"); value != "" {
