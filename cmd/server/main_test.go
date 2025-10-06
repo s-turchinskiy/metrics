@@ -132,7 +132,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 		},
 	},
 		{
-			name:    "запрос присутсвующей метрики",
+			name:    "запрос присутствующей метрики",
 			method:  http.MethodGet,
 			request: "/value/gauge/someMetric",
 			storage: &service.Service{

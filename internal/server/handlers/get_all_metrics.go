@@ -1,0 +1,65 @@
+package handlers
+
+import (
+	"bytes"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
+	"go.uber.org/zap"
+	"html/template"
+	"net/http"
+)
+
+type OutputAllMetrics struct {
+	Header string
+	Table  map[string]string
+}
+
+// GetAllMetrics godoc
+// @Tags Info
+// @Summary Получение всех метрик на текущий момент
+// @ID infoGetAllMetrics
+// @Accept  json
+// @Produce html
+// @Success 200 {html} html "Counter PollCount 3119064 someMetric	26 Gauge Alloc	2829408 BuckHashSys	3349 CPUutilization0	9.708737864123963"
+// @Failure 500 {string} string "Внутренняя ошибка"
+// @Router / [get]
+func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "text/html")
+
+	if r.URL.Path != "/" {
+		logger.Log.Infow("error, Path != \"/\"", "path", r.URL.Path)
+		http.NotFound(w, r)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		logger.Log.Infow("error, Method != Get", "Method", r.Method)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	result, err := h.Service.GetAllMetrics(r.Context())
+	if err != nil {
+		logger.Log.Info("error getting data", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	for mtype, table := range result {
+
+		var body bytes.Buffer
+
+		data := OutputAllMetrics{Header: mtype, Table: table}
+
+		t := template.Must(template.New("").Parse(templateOutputAllMetrics))
+		if err := t.Execute(&body, data); err != nil {
+			logger.Log.Info("cannot output data", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		w.Write(body.Bytes())
+	}
+
+}
