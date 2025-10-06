@@ -1,3 +1,4 @@
+// Package services Сервис обновления метрик
 package services
 
 import (
@@ -31,6 +32,7 @@ type MetricsHandler struct {
 	ServerAddress string
 }
 
+// UpdateMetrics Обновление метрик в хранилище
 func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 
 	ticker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
@@ -58,6 +60,7 @@ func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 
 }
 
+// GetMetrics Получение метрик из хранилища
 func GetMetrics(cpuTime time.Duration) (map[string]float64, error) {
 
 	result := make(map[string]float64, len(metricsNames))

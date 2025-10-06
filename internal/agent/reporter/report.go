@@ -1,3 +1,4 @@
+// Package reporter Отправка метрик на сервер
 package reporter
 
 import (

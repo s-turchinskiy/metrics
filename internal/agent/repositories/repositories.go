@@ -1,3 +1,4 @@
+// Package repositories Хранение метрик
 package repositories
 
 import (
