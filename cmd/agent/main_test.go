@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/common"
-	"testing"
-	"time"
 )
 
 func BenchmarkAll(b *testing.B) {
@@ -24,7 +25,7 @@ func BenchmarkAll(b *testing.B) {
 		fmt.Sprintf("%s/update/", h.ServerAddress),
 		common.СomputeHexadecimalSha256Hash,
 	)
-	
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {

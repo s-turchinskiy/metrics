@@ -3,10 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
+	"go.uber.org/zap"
+
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
-	"go.uber.org/zap"
-	"net/http"
 )
 
 func (h *MetricsHandler) UpdateMetricsBatch(w http.ResponseWriter, r *http.Request) {

@@ -2,10 +2,11 @@ package retrier
 
 import (
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"strings"
 	"time"
+
+	"github.com/s-turchinskiy/metrics/internal/agent/logger"
+	"github.com/s-turchinskiy/metrics/internal/agent/models"
 )
 
 type ReportMetricRetrier interface {

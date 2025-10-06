@@ -3,9 +3,10 @@ package sendmetric
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
-	"net/http"
 )
 
 type MetricSender interface {

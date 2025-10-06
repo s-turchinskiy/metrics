@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"context"
+	"log"
+	"time"
+
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
 	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"log"
-	"time"
 )
 
 type MetricsHandler struct {

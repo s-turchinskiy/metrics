@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+
 	models "github.com/s-turchinskiy/metrics/internal/server/models"
 )
 

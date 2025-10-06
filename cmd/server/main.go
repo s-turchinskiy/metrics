@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/joho/godotenv"
-	"github.com/s-turchinskiy/metrics/internal/server/handlers"
-	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
-	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"go.uber.org/zap"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"time"
+
+	"github.com/joho/godotenv"
+	"go.uber.org/zap"
+
+	"github.com/s-turchinskiy/metrics/internal/server/handlers"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 )
 
 func init() {

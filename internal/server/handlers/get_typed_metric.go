@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/mailru/easyjson"
+	"go.uber.org/zap"
+
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
-	"go.uber.org/zap"
-	"net/http"
 )
 
 func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) {

@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
+
 	_ "github.com/s-turchinskiy/metrics/internal/server/handlers/swagger"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/gzip"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/hash"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
-	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // @Title MetricStorage API

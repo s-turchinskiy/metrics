@@ -1,13 +1,15 @@
 package main
 
 import (
+	"log"
+
 	"github.com/joho/godotenv"
+
 	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/reporter"
 	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
-	"log"
 )
 
 func main() {

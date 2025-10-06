@@ -1,9 +1,10 @@
 package repositories
 
 import (
+	"sync"
+
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
-	"sync"
 )
 
 type MetricsStorage struct {

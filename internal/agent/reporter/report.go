@@ -2,6 +2,8 @@ package reporter
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
@@ -10,7 +12,6 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
 	"github.com/s-turchinskiy/metrics/internal/common"
-	"time"
 )
 
 func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}) {

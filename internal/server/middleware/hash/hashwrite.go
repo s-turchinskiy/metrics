@@ -2,9 +2,10 @@ package hash
 
 import (
 	"bytes"
+	"net/http"
+
 	"github.com/s-turchinskiy/metrics/internal/common"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"net/http"
 )
 
 type hashingResponseWriter struct {

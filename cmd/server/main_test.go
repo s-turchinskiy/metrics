@@ -3,21 +3,23 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jmoiron/sqlx"
-	"github.com/s-turchinskiy/metrics/internal/common/testingcommon"
-	"github.com/s-turchinskiy/metrics/internal/server/handlers"
-	"github.com/s-turchinskiy/metrics/internal/server/middleware/gzip"
-	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
-	"github.com/s-turchinskiy/metrics/internal/server/service"
-	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/s-turchinskiy/metrics/internal/common/testingcommon"
+	"github.com/s-turchinskiy/metrics/internal/server/handlers"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/gzip"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
+	"github.com/s-turchinskiy/metrics/internal/server/service"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 )
 
 type want struct {

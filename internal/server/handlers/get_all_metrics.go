@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"bytes"
-	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
-	"go.uber.org/zap"
 	"html/template"
 	"net/http"
+
+	"go.uber.org/zap"
+
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 )
 
 type OutputAllMetrics struct {

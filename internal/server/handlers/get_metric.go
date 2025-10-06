@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
-	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"net/http"
 	"strings"
+
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
+	"github.com/s-turchinskiy/metrics/internal/server/models"
 )
 
 func (h *MetricsHandler) GetMetric(w http.ResponseWriter, r *http.Request) {

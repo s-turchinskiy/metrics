@@ -5,11 +5,12 @@ import (
 	"crypto/hmac"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/s-turchinskiy/metrics/internal/common"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"io"
-	"net/http"
 )
 
 func HashReadMiddleware(next http.Handler) http.Handler {

@@ -3,13 +3,15 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+
+	"go.uber.org/zap"
+
 	"github.com/s-turchinskiy/metrics/internal/common"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"go.uber.org/zap"
-	"io"
-	"net/http"
 )
 
 func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {

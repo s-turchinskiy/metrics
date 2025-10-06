@@ -2,15 +2,17 @@ package services
 
 import (
 	"fmt"
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
-	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	"github.com/s-turchinskiy/metrics/internal/agent/models"
-	"github.com/shirou/gopsutil/v4/cpu"
-	"github.com/shirou/gopsutil/v4/mem"
 	"math/rand"
 	"reflect"
 	"runtime"
 	"time"
+
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
+
+	"github.com/s-turchinskiy/metrics/cmd/agent/config"
+	"github.com/s-turchinskiy/metrics/internal/agent/logger"
+	"github.com/s-turchinskiy/metrics/internal/agent/models"
 )
 
 var (

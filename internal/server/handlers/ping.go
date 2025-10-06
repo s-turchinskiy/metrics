@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"net/http"
+
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 )
 
 // Ping godoc
