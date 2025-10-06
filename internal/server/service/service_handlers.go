@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"

@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mailru/easyjson"
-	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/common"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
@@ -14,6 +15,7 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	"go.uber.org/zap"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -76,7 +78,6 @@ func NewHandler(ctx context.Context) *MetricsHandler {
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
 
 	if r.URL.Path != "/" {
 		logger.Log.Infow("error, Path != \"/\"", "path", r.URL.Path)
@@ -162,7 +163,15 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 
 	var req models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Log.Info("cannot decode request JSON body", zap.Error(err))
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			logger.Log.Info("cannot decode request JSON body", zap.Error(common.WrapError(err)))
+			logger.Log.Debugw(common.WrapError(fmt.Errorf("error read body")).Error())
+			return
+		}
+		logger.Log.Info("cannot decode request JSON body", zap.Error(common.WrapError(err)), zap.String("body", string(body)))
+
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -178,7 +187,6 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 
 	resp := models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
 	enc := json.NewEncoder(w)
@@ -228,7 +236,6 @@ func (h *MetricsHandler) UpdateMetricsBatch(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Load %d records", count)))
 
 }
@@ -260,7 +267,6 @@ func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 
 	resp := &models.Metrics{ID: result.Name, MType: result.MType, Delta: result.Delta, Value: result.Value}
 	rawBytes, err := easyjson.Marshal(resp)

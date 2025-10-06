@@ -1,7 +1,10 @@
 package main
 
 import (
+	"github.com/joho/godotenv"
+	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
+	"github.com/s-turchinskiy/metrics/internal/agent/reporter"
 	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 	"log"
@@ -13,8 +16,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	addr := services.NetAddress{Host: "localhost", Port: 8080}
-	parseFlags(&addr)
+	err := godotenv.Load("./cmd/agent/.env")
+	if err != nil {
+		logger.Log.Debugw("Error loading .env file", "error", err.Error())
+	}
+
+	addr := config.NetAddress{Host: "localhost", Port: 8080}
+	config.ParseFlags(&addr)
 
 	metricsHandler := &services.MetricsHandler{
 		Storage: &repositories.MetricsStorage{
@@ -26,11 +34,14 @@ func main() {
 
 	errorsChan := make(chan error)
 
-	go services.UpdateMetrics(metricsHandler, errorsChan)
-	go services.ReportMetrics(metricsHandler, errorsChan)
-	//go services.ReportMetricsBatch(metricsHandler, errors)
+	doneCh := make(chan struct{})
+	defer close(doneCh)
 
-	err := <-errorsChan
+	go services.UpdateMetrics(metricsHandler, errorsChan, doneCh)
+	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh)
+	//go reporter.ReportMetricsBatch(metricsHandler, errors)
+
+	err = <-errorsChan
 	log.Fatal(err)
 
 }

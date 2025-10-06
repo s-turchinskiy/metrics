@@ -4,8 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/file"
-	"github.com/s-turchinskiy/metrics/internal/server/logger"
+	"github.com/s-turchinskiy/metrics/internal/common/file"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
@@ -32,6 +32,7 @@ type ProgramSettings struct {
 	FileStoragePath               string     `yaml:"FILE_STORAGE_PATH" lc:"путь до файла, куда сохраняются текущие значения"`
 	Restore                       bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
 	Database                      database   `yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
+	HashKey                       string     `yaml:"HASH_KEY" lc:"HashSHA256 ключ для обмена между агентом и сервером"`
 	AsynchronousWritingDataToFile bool
 	Store                         Store
 }
@@ -138,6 +139,7 @@ func GetSettings() error {
 	flag.StringVar(&Settings.FileStoragePath, "f", Settings.FileStoragePath, "Путь до файла, куда сохраняются текущие значения")
 	flag.BoolVar(&Settings.Restore, "r", Settings.Restore, "Определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
 	flag.Var(&Settings.Database, "d", "path to database")
+	flag.StringVar(&Settings.HashKey, "k", "", "HashSHA256 key")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
@@ -166,6 +168,10 @@ func GetSettings() error {
 			return err
 		}
 		Settings.Restore = restore
+	}
+
+	if value := os.Getenv("KEY"); value != "" {
+		Settings.HashKey = value
 	}
 
 	DatabaseDsn := os.Getenv("DATABASE_DSN")
