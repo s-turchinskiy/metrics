@@ -1,0 +1,94 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Сервис хранения метрик.",
+        "title": "MetricStorage API",
+        "contact": {
+            "email": "s.turchinskiy@yandex.ru"
+        },
+        "version": "1.0"
+    },
+    "host": "nohost.io:8080",
+    "basePath": "/",
+    "paths": {
+        "/": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Info"
+                ],
+                "summary": "Получение всех метрик на текущий момент",
+                "operationId": "infoGetAllMetrics",
+                "responses": {
+                    "200": {
+                        "description": "Counter PollCount 3119064 someMetric\t26 Gauge Alloc\t2829408 BuckHashSys\t3349 CPUutilization0\t9.708737864123963",
+                        "schema": {
+                            "type": "html"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ping": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Ping"
+                ],
+                "summary": "пинг сервиса",
+                "operationId": "pingPing",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "html"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "type": "html"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "name": "authorization",
+            "in": "header"
+        }
+    },
+    "tags": [
+        {
+            "description": "\"Группа запросов метрик\"",
+            "name": "Info"
+        },
+        {
+            "description": "\"Группа обновления метрик\"",
+            "name": "Update"
+        },
+        {
+            "description": "\"Группа проверки работоспособности сервиса\"",
+            "name": "Ping"
+        }
+    ]
+}

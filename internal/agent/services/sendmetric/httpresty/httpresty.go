@@ -3,7 +3,9 @@ package httpresty
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/go-resty/resty/v2"
+
 	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"

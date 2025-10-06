@@ -3,15 +3,17 @@ package postgresql
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
+	"time"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jmoiron/sqlx"
+
 	"github.com/s-turchinskiy/metrics/internal/common"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"log"
-	"strings"
-	"time"
 )
 
 type PostgreSQL struct {

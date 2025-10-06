@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"time"
+
 	"github.com/joho/godotenv"
-	"github.com/s-turchinskiy/metrics/internal/server"
+	"go.uber.org/zap"
+
 	"github.com/s-turchinskiy/metrics/internal/server/handlers"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
-	"go.uber.org/zap"
-	"log"
-	"net/http"
-	"time"
 )
 
 func init() {
@@ -77,7 +79,7 @@ func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandl
 
 func run(h *handlers.MetricsHandler) error {
 
-	router := server.Router(h)
+	router := handlers.Router(h)
 
 	logger.Log.Info("Running server", zap.String("address", settings.Settings.Address.String()))
 
