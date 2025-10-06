@@ -34,7 +34,14 @@ const docTemplate = `{
                     "200": {
                         "description": "Counter PollCount 3119064 someMetric\t26 Gauge Alloc\t2829408 BuckHashSys\t3349 CPUutilization0\t9.708737864123963",
                         "schema": {
-                            "type": "html"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "number",
+                                    "format": "float64"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -63,15 +70,377 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "html"
+                            "type": "string"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка",
                         "schema": {
-                            "type": "html"
+                            "type": "string"
                         }
                     }
+                }
+            }
+        },
+        "/update": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Создание новой / обновление существующей метрики из json",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Update"
+                ],
+                "summary": "Сохранение метрики",
+                "operationId": "updateUpdateMetricJSON",
+                "parameters": [
+                    {
+                        "description": "Содержимое метрики",
+                        "name": "metric_data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Metrics"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Metrics"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Ошибка авторизации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/updates": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Массовое создание / обновление существующих метрик из json",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Update"
+                ],
+                "summary": "Сохранение метрик",
+                "operationId": "updateUpdateMetricsBatch",
+                "parameters": [
+                    {
+                        "description": "Метрики",
+                        "name": "metric_data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Metrics"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Load 5 records",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Ошибка авторизации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/value": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Получение значение метрики в json",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Info"
+                ],
+                "summary": "Получение метрики",
+                "operationId": "infoGetTypedMetric",
+                "parameters": [
+                    {
+                        "description": "Запрос метрики",
+                        "name": "metric_data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Metrics"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Metrics"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Ошибка авторизации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/value/{MetricsType}/{MetricsName}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Получение значения метрики по типу и наименованию метрики",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Info"
+                ],
+                "summary": "Получение значения метрики",
+                "operationId": "infoGetMetric",
+                "parameters": [
+                    {
+                        "enum": [
+                            "counter",
+                            "gauge"
+                        ],
+                        "type": "string",
+                        "description": "Metrics Type",
+                        "name": "MetricsType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Metrics Name",
+                        "name": "MetricsName",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "100",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Ошибка авторизации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/value/{MetricsType}/{MetricsName}/{MetricsValue}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Обновление значения метрики с передачей в параметрах запроса типа, наименования, значения метрики",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Update"
+                ],
+                "summary": "Обновление значения метрики",
+                "operationId": "updateUpdateMetric",
+                "parameters": [
+                    {
+                        "enum": [
+                            "counter",
+                            "gauge"
+                        ],
+                        "type": "string",
+                        "description": "Metrics Type",
+                        "name": "MetricsType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Metrics Name",
+                        "name": "MetricsName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Metrics Value",
+                        "name": "MetricsValue",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "100, установленное значение метрики",
+                        "schema": {
+                            "type": "Object"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Ошибка авторизации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.Metrics": {
+            "type": "object",
+            "properties": {
+                "delta": {
+                    "description": "значение метрики в случае передачи counter",
+                    "type": "integer",
+                    "example": 100
+                },
+                "id": {
+                    "description": "имя метрики",
+                    "type": "string",
+                    "enum": [
+                        "counter",
+                        "gauge"
+                    ],
+                    "example": "gauge"
+                },
+                "type": {
+                    "description": "параметр, принимающий значение gauge или counter",
+                    "type": "string",
+                    "example": "Alloc"
+                },
+                "value": {
+                    "description": "значение метрики в случае передачи gauge",
+                    "type": "number",
+                    "example": 6649272
                 }
             }
         }

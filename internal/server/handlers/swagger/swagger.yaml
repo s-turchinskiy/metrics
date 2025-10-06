@@ -1,4 +1,27 @@
 basePath: /
+definitions:
+  models.Metrics:
+    properties:
+      delta:
+        description: значение метрики в случае передачи counter
+        example: 100
+        type: integer
+      id:
+        description: имя метрики
+        enum:
+        - counter
+        - gauge
+        example: gauge
+        type: string
+      type:
+        description: параметр, принимающий значение gauge или counter
+        example: Alloc
+        type: string
+      value:
+        description: значение метрики в случае передачи gauge
+        example: 6649272
+        type: number
+    type: object
 host: nohost.io:8080
 info:
   contact:
@@ -19,7 +42,12 @@ paths:
           description: "Counter PollCount 3119064 someMetric\t26 Gauge Alloc\t2829408
             BuckHashSys\t3349 CPUutilization0\t9.708737864123963"
           schema:
-            type: html
+            additionalProperties:
+              additionalProperties:
+                format: float64
+                type: number
+              type: object
+            type: object
         "500":
           description: Внутренняя ошибка
           schema:
@@ -38,14 +66,230 @@ paths:
         "200":
           description: OK
           schema:
-            type: html
+            type: string
         "500":
           description: Внутренняя ошибка
           schema:
-            type: html
+            type: string
       summary: пинг сервиса
       tags:
       - Ping
+  /update:
+    post:
+      consumes:
+      - application/json
+      description: Создание новой / обновление существующей метрики из json
+      operationId: updateUpdateMetricJSON
+      parameters:
+      - description: Содержимое метрики
+        in: body
+        name: metric_data
+        required: true
+        schema:
+          $ref: '#/definitions/models.Metrics'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Metrics'
+        "400":
+          description: Неверный запрос
+          schema:
+            type: string
+        "403":
+          description: Ошибка авторизации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Сохранение метрики
+      tags:
+      - Update
+  /updates:
+    post:
+      consumes:
+      - application/json
+      description: Массовое создание / обновление существующих метрик из json
+      operationId: updateUpdateMetricsBatch
+      parameters:
+      - description: Метрики
+        in: body
+        name: metric_data
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.Metrics'
+          type: array
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: Load 5 records
+          schema:
+            type: string
+        "400":
+          description: Неверный запрос
+          schema:
+            type: string
+        "403":
+          description: Ошибка авторизации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Сохранение метрик
+      tags:
+      - Update
+  /value:
+    post:
+      consumes:
+      - application/json
+      description: Получение значение метрики в json
+      operationId: infoGetTypedMetric
+      parameters:
+      - description: Запрос метрики
+        in: body
+        name: metric_data
+        required: true
+        schema:
+          $ref: '#/definitions/models.Metrics'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Metrics'
+        "400":
+          description: Неверный запрос
+          schema:
+            type: string
+        "403":
+          description: Ошибка авторизации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Получение метрики
+      tags:
+      - Info
+  /value/{MetricsType}/{MetricsName}:
+    get:
+      consumes:
+      - application/json
+      description: Получение значения метрики по типу и наименованию метрики
+      operationId: infoGetMetric
+      parameters:
+      - description: Metrics Type
+        enum:
+        - counter
+        - gauge
+        in: path
+        name: MetricsType
+        required: true
+        type: string
+      - description: Metrics Name
+        in: path
+        name: MetricsName
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: "100"
+          schema:
+            type: string
+        "400":
+          description: Неверный запрос
+          schema:
+            type: string
+        "403":
+          description: Ошибка авторизации
+          schema:
+            type: string
+        "404":
+          description: Bucket не найден
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Получение значения метрики
+      tags:
+      - Info
+  /value/{MetricsType}/{MetricsName}/{MetricsValue}:
+    get:
+      consumes:
+      - application/json
+      description: Обновление значения метрики с передачей в параметрах запроса типа,
+        наименования, значения метрики
+      operationId: updateUpdateMetric
+      parameters:
+      - description: Metrics Type
+        enum:
+        - counter
+        - gauge
+        in: path
+        name: MetricsType
+        required: true
+        type: string
+      - description: Metrics Name
+        in: path
+        name: MetricsName
+        required: true
+        type: string
+      - description: Metrics Value
+        format: float64
+        in: path
+        name: MetricsValue
+        required: true
+        type: number
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: 100, установленное значение метрики
+          schema:
+            type: Object
+        "400":
+          description: Неверный запрос
+          schema:
+            type: string
+        "403":
+          description: Ошибка авторизации
+          schema:
+            type: string
+        "404":
+          description: Bucket не найден
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Обновление значения метрики
+      tags:
+      - Update
 securityDefinitions:
   ApiKeyAuth:
     in: header

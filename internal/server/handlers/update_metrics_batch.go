@@ -11,6 +11,20 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 )
 
+// UpdateMetricsBatch godoc
+// @Tags Update
+// @Summary Сохранение метрик
+// @Description Массовое создание / обновление существующих метрик из json
+// @ID updateUpdateMetricsBatch
+// @Accept  json
+// @Produce html
+// @Param metric_data body []models.Metrics true "Метрики"
+// @Success 200 {string} string "Load 5 records"
+// @Failure 400 {string} string "Неверный запрос"
+// @Failure 403 {string} string "Ошибка авторизации"
+// @Failure 500 {string} string "Внутренняя ошибка"
+// @Security ApiKeyAuth
+// @Router /updates [post]
 func (h *MetricsHandler) UpdateMetricsBatch(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {

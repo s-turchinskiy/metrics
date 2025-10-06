@@ -15,13 +15,15 @@ type OutputAllMetrics struct {
 	Table  map[string]string
 }
 
+//type output map[string]map[string]float64`example:"key:value,key2:value2"`
+
 // GetAllMetrics godoc
 // @Tags Info
 // @Summary Получение всех метрик на текущий момент
 // @ID infoGetAllMetrics
 // @Accept  json
 // @Produce html
-// @Success 200 {html} html "Counter PollCount 3119064 someMetric	26 Gauge Alloc	2829408 BuckHashSys	3349 CPUutilization0	9.708737864123963"
+// @Success 200 {object} map[string]map[string]float64 "Counter PollCount 3119064 someMetric	26 Gauge Alloc	2829408 BuckHashSys	3349 CPUutilization0	9.708737864123963"
 // @Failure 500 {string} string "Внутренняя ошибка"
 // @Router / [get]
 func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {

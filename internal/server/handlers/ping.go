@@ -12,8 +12,8 @@ import (
 // @ID pingPing
 // @Accept  json
 // @Produce html
-// @Success 200 {html} html ""
-// @Failure 500 {html} html "Внутренняя ошибка"
+// @Success 200 {string} string ""
+// @Failure 500 {string} string "Внутренняя ошибка"
 // @Router /ping [get]
 func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 

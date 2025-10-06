@@ -11,6 +11,20 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 )
 
+// GetTypedMetric godoc
+// @Tags Info
+// @Summary Получение метрики
+// @Description Получение значение метрики в json
+// @ID infoGetTypedMetric
+// @Accept  json
+// @Produce json
+// @Param metric_data body models.Metrics true "Запрос метрики"
+// @Success 200 {object} models.Metrics "OK"
+// @Failure 400 {string} string "Неверный запрос"
+// @Failure 403 {string} string "Ошибка авторизации"
+// @Failure 500 {string} string "Внутренняя ошибка"
+// @Security ApiKeyAuth
+// @Router /value [post]
 func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {

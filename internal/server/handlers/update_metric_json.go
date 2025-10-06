@@ -14,6 +14,20 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 )
 
+// UpdateMetricJSON godoc
+// @Tags Update
+// @Summary Сохранение метрики
+// @Description Создание новой / обновление существующей метрики из json
+// @ID updateUpdateMetricJSON
+// @Accept  json
+// @Produce json
+// @Param metric_data body models.Metrics true "Содержимое метрики"
+// @Success 200 {object} models.Metrics "OK"
+// @Failure 400 {string} string "Неверный запрос"
+// @Failure 403 {string} string "Ошибка авторизации"
+// @Failure 500 {string} string "Внутренняя ошибка"
+// @Security ApiKeyAuth
+// @Router /update [post]
 func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
