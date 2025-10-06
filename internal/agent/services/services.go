@@ -38,7 +38,7 @@ func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 		case <-doneCh:
 			return
 		default:
-			metrics, err := GetMetrics()
+			metrics, err := GetMetrics(1 * time.Second)
 			if err != nil {
 				logger.Log.Infoln("getMetrics error", err.Error())
 			}
@@ -56,7 +56,7 @@ func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 
 }
 
-func GetMetrics() (map[string]float64, error) {
+func GetMetrics(cpuTime time.Duration) (map[string]float64, error) {
 
 	result := make(map[string]float64, len(metricsNames))
 
@@ -105,7 +105,7 @@ func GetMetrics() (map[string]float64, error) {
 	result["TotalMemory"] = float64(vm.Total)
 	result["FreeMemory"] = float64(vm.Free)
 
-	cpuPercent, err := cpu.Percent(1*time.Second, true)
+	cpuPercent, err := cpu.Percent(cpuTime, true)
 	if err != nil {
 		return nil, err
 	}

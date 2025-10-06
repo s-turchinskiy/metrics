@@ -13,10 +13,6 @@ import (
 	"time"
 )
 
-func main() {
-
-}
-
 func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}) {
 
 	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)

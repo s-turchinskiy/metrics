@@ -1,0 +1,61 @@
+basePath: /
+host: nohost.io:8080
+info:
+  contact:
+    email: s.turchinskiy@yandex.ru
+  description: Сервис хранения метрик.
+  title: MetricStorage API
+  version: "1.0"
+paths:
+  /:
+    get:
+      consumes:
+      - application/json
+      operationId: infoGetAllMetrics
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: "Counter PollCount 3119064 someMetric\t26 Gauge Alloc\t2829408
+            BuckHashSys\t3349 CPUutilization0\t9.708737864123963"
+          schema:
+            type: html
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            type: string
+      summary: Получение всех метрик на текущий момент
+      tags:
+      - Info
+  /ping:
+    get:
+      consumes:
+      - application/json
+      operationId: pingPing
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: html
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            type: html
+      summary: пинг сервиса
+      tags:
+      - Ping
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: authorization
+    type: apiKey
+swagger: "2.0"
+tags:
+- description: '"Группа запросов метрик"'
+  name: Info
+- description: '"Группа обновления метрик"'
+  name: Update
+- description: '"Группа проверки работоспособности сервиса"'
+  name: Ping
