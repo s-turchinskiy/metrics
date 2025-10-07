@@ -4,13 +4,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/file"
-	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"strconv"
 	"strings"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
+	"github.com/s-turchinskiy/metrics/internal/common/file"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 )
 
 const (

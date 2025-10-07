@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 )
 

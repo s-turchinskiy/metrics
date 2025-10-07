@@ -1,3 +1,4 @@
+// Package models Модели агента
 package models
 
 type Metrics struct {
