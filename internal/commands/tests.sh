@@ -1,10 +1,14 @@
-#покажет детализацию до названий всех тестов
+#Покажет детализацию до названий всех тестов
 go test -v ./...
-#покажет процент покрытия тестами
-go test ./... -coverprofile=.coverage.html
+#Покажет процент покрытия тестами, 2 способа
+go test ./... -coverprofile=coverage.html
+go test ./... -cover
 
-#покажет покрытие в файлах
+#Покажет покрытие в файлах
 go tool cover -html=coverage.html
 
-#бенчмарки. надо переключаться на директорию и указывать точку, ./... не работает. -benchmem - добавляет данные по оперативке к процессору
+#Все вместе
+go test ./... -coverprofile=coverage.html && go tool cover -html=coverage.html
+
+#Бенчмарки. надо переключаться на директорию и указывать точку, ./... не работает. -benchmem - добавляет данные по оперативке к процессору
 cd /home/stanislav/go/metrics/cmd/agent && go test -bench . -benchmem
