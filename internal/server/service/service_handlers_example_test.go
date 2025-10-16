@@ -14,7 +14,7 @@ func ExampleService_UpdateTypedMetrics() {
 		Counter: map[string]int64{"someMetric": 2},
 	}
 
-	var value float64 = 1.23
+	var value = 1.23
 	var delta int64 = 2
 	metrics := []models.StorageMetrics{
 		{MType: "Gauge", Name: "someMetric", Value: &value},
