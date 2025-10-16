@@ -9,7 +9,7 @@ import (
 
 func TestMetricsStorage_GetMetrics(t *testing.T) {
 
-	var val float64 = 1.23
+	var val = 1.23
 	var delta int64 = 2
 
 	type fields struct {
@@ -65,14 +65,14 @@ func TestMetricsStorage_UpdateMetrics(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    MetricsStorage
+		want    fields
 		wantErr bool
 	}{
 		{
 			name:    "success",
 			fields:  fields{Gauge: make(map[string]float64), Counter: make(map[string]int64)},
 			args:    args{metrics: map[string]float64{"some": 1.23}},
-			want:    MetricsStorage{Gauge: map[string]float64{"some": 1.23}, Counter: map[string]int64{"PollCount": 1}},
+			want:    fields{Gauge: map[string]float64{"some": 1.23}, Counter: map[string]int64{"PollCount": 1}},
 			wantErr: false,
 		},
 	}
