@@ -19,12 +19,6 @@ func (h *MetricsHandler) Ping(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", ContentTypeTextHTML)
 
-	if r.Method != http.MethodGet {
-		logger.Log.Infow("error, Method != Get", "Method", r.Method)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	data, err := h.Service.Ping(r.Context())
 
 	if err != nil {

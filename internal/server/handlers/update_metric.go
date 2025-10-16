@@ -35,13 +35,6 @@ func (h *MetricsHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
-		logger.Log.Infoln(err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
-	}
-
 	path := strings.TrimPrefix(r.URL.Path, "/update/")
 	pathSlice := strings.Split(path, "/")
 

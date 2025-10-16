@@ -1,3 +1,4 @@
+// Package gzip Распаковка входящих данных из gzip, упаковка исходящих данных в gzip
 package gzip
 
 import (

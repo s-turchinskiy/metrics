@@ -1,3 +1,4 @@
+// Package repository Интерфейс для хранения данных
 package repository
 
 import (

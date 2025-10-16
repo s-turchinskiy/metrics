@@ -1,3 +1,4 @@
+// Package service Сервис обработки запросов
 package service
 
 import (

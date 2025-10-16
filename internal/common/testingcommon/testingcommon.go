@@ -1,3 +1,4 @@
+// Package testingcommon Общие процедуры тестирования
 package testingcommon
 
 import (
@@ -10,6 +11,21 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+type Test struct {
+	Name        string
+	Method      string
+	Address     string
+	ContentType string
+	Request     string
+	Want        Want
+}
+
+type Want struct {
+	ContentType string
+	StatusCode  int
+	Response    string
+}
 
 type TestPostGzip struct {
 	Name         string

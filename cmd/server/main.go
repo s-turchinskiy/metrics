@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"github.com/s-turchinskiy/metrics/internal/server/repository"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
+	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -37,7 +40,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	metricsHandler := handlers.NewHandler(ctx)
+	var rep repository.Repository
+	if settings.Settings.Store == settings.Database {
+
+		rep, err = postgresql.Initialize(ctx)
+		if err != nil {
+			logger.Log.Debugw("Connect to database error", "error", err.Error())
+			log.Fatal(err)
+		}
+
+	} else {
+
+		rep = &memcashed.MemCashed{
+			Gauge:   make(map[string]float64),
+			Counter: make(map[string]int64),
+		}
+
+	}
+
+	metricsHandler := handlers.NewHandler(ctx, rep)
 
 	errors := make(chan error)
 

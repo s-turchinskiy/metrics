@@ -3,12 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
 	"io"
 	"net/http"
 
 	"go.uber.org/zap"
 
-	"github.com/s-turchinskiy/metrics/internal/common"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
@@ -30,22 +30,17 @@ import (
 // @Router /update [post]
 func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodPost {
-		logger.Log.Infow("error, Method != Post", "Method", r.Method)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			logger.Log.Info("cannot decode request JSON body", zap.Error(common.WrapError(err)))
-			logger.Log.Debugw(common.WrapError(fmt.Errorf("error read body")).Error())
+			logger.Log.Info("cannot decode request JSON body", zap.Error(error2.WrapError(err)))
+			logger.Log.Debugw(error2.WrapError(fmt.Errorf("error read body")).Error())
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		logger.Log.Info("cannot decode request JSON body", zap.Error(common.WrapError(err)), zap.String("body", string(body)))
+		logger.Log.Info("cannot decode request JSON body", zap.Error(error2.WrapError(err)), zap.String("body", string(body)))
 
 		w.WriteHeader(http.StatusInternalServerError)
 		return

@@ -60,7 +60,7 @@ func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 
 }
 
-// GetMetrics Получение метрик из хранилища
+// GetMetrics Получение метрик из операционной системы
 func GetMetrics(cpuTime time.Duration) (map[string]float64, error) {
 
 	result := make(map[string]float64, len(metricsNames))

@@ -1,3 +1,4 @@
+// Package memcashed Хранение данных в оперативной памяти
 package memcashed
 
 import (

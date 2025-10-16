@@ -22,10 +22,10 @@ import (
 type Service struct {
 	Repository    repository.Repository
 	retryStrategy []time.Duration
-	file          *os.File
 	mutex         sync.Mutex
 }
 
+// New Создание нового сервиса
 func New(rep repository.Repository, retryStrategy []time.Duration) *Service {
 
 	if len(retryStrategy) == 0 {
@@ -43,6 +43,7 @@ type MetricsFileStorage struct {
 	Date    string
 }
 
+// UpdateTypedMetrics Массовое обновление метрик
 func (s *Service) UpdateTypedMetrics(ctx context.Context, metrics []models.StorageMetrics) (int64, error) {
 
 	s.mutex.Lock()
@@ -60,6 +61,7 @@ func (s *Service) UpdateTypedMetrics(ctx context.Context, metrics []models.Stora
 
 }
 
+// GetAllMetrics Получение всех метрик
 func (s *Service) GetAllMetrics(ctx context.Context) (map[string]map[string]string, error) {
 
 	s.mutex.Lock()
@@ -106,6 +108,7 @@ func (s *Service) GetAllMetrics(ctx context.Context) (map[string]map[string]stri
 	return result, nil
 }
 
+// UpdateTypedMetric Обновление типизированной метрики
 func (s *Service) UpdateTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error) {
 
 	s.mutex.Lock()
@@ -169,6 +172,8 @@ func (s *Service) UpdateTypedMetric(ctx context.Context, metric models.StorageMe
 	return &result, nil
 
 }
+
+// UpdateMetric Обновление нетипизированной метрики
 func (s *Service) UpdateMetric(ctx context.Context, metric models.UntypedMetric) error {
 
 	s.mutex.Lock()
@@ -208,6 +213,7 @@ func (s *Service) UpdateMetric(ctx context.Context, metric models.UntypedMetric)
 	return nil
 }
 
+// GetTypedMetric Получение типизированной метрики
 func (s *Service) GetTypedMetric(ctx context.Context, metric models.StorageMetrics) (*models.StorageMetrics, error) {
 
 	s.mutex.Lock()
@@ -271,6 +277,7 @@ func (s *Service) GetTypedMetric(ctx context.Context, metric models.StorageMetri
 	}
 }
 
+// GetMetric Получение нетипизированной метрики
 func (s *Service) GetMetric(ctx context.Context, metric models.UntypedMetric) (string, error) {
 
 	s.mutex.Lock()
@@ -307,24 +314,25 @@ func (s *Service) GetMetric(ctx context.Context, metric models.UntypedMetric) (s
 	}
 }
 
-func (s *Service) SaveMetricsToFile(ctx context.Context) error {
+// GetMetricsFromRepository Получение всех метрик для сохранения в файл
+func (s *Service) GetMetricsFromRepository(ctx context.Context) (data []byte, err error) {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if s.Repository.CountGauges(ctx) == 0 && s.Repository.CountCounters(ctx) == 0 {
 		logger.Log.Debug("SaveMetricsToFile, no data available")
-		return nil
+		return nil, nil
 	}
 
 	gauges, err := s.Repository.GetAllGauges(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	counters, err := s.Repository.GetAllCounters(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	metricsForFile := MetricsFileStorage{
@@ -333,7 +341,13 @@ func (s *Service) SaveMetricsToFile(ctx context.Context) error {
 		Date:    time.Now().Format(time.DateTime),
 	}
 
-	data, err := json.MarshalIndent(&metricsForFile, "", "   ")
+	return json.MarshalIndent(&metricsForFile, "", "   ")
+}
+
+// SaveMetricsToFile Сохранение метрик в файл
+func (s *Service) SaveMetricsToFile(ctx context.Context) error {
+
+	data, err := s.GetMetricsFromRepository(ctx)
 	if err != nil {
 		return err
 	}
@@ -349,9 +363,34 @@ func (s *Service) SaveMetricsToFile(ctx context.Context) error {
 
 }
 
-func (s *Service) LoadMetricsFromFile(ctx context.Context) error {
+// LoadMetricsFromData Загрузка метрик из массива байт
+func (s *Service) LoadMetricsFromData(ctx context.Context, data []byte) error {
 
 	metricsForFile := &MetricsFileStorage{}
+
+	if err := json.Unmarshal(data, metricsForFile); err != nil {
+		return err
+	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	err := s.Repository.ReloadAllGauges(ctx, metricsForFile.Gauge)
+	if err != nil {
+		return err
+	}
+	err = s.Repository.ReloadAllCounters(ctx, metricsForFile.Counter)
+	if err != nil {
+		return err
+	}
+
+	logger.Log.Debugw("LoadMetricsFromFile", "data", string(data))
+
+	return err
+}
+
+// LoadMetricsFromFile Загрузка метрик из файла
+func (s *Service) LoadMetricsFromFile(ctx context.Context) error {
 
 	data, err := os.ReadFile(settings.Settings.FileStoragePath)
 
@@ -365,31 +404,16 @@ func (s *Service) LoadMetricsFromFile(ctx context.Context) error {
 		return nil
 
 	}
+
 	if err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(data, metricsForFile); err != nil {
-		return err
-	}
-
-	s.mutex.Lock()
-	err = s.Repository.ReloadAllGauges(ctx, metricsForFile.Gauge)
-	if err != nil {
-		return err
-	}
-	err = s.Repository.ReloadAllCounters(ctx, metricsForFile.Counter)
-	if err != nil {
-		return err
-	}
-	s.mutex.Unlock()
-
-	logger.Log.Debugw("LoadMetricsFromFile", "data", string(data))
-
-	return err
+	return s.LoadMetricsFromData(ctx, data)
 
 }
 
+// Ping Проверка успешности подключения репозитория
 func (s *Service) Ping(ctx context.Context) ([]byte, error) {
 
 	return s.Repository.Ping(ctx)
@@ -409,6 +433,11 @@ func isConnectionError(err error) bool {
 
 	var pgErr *pgconn.PgError
 	errors.As(err, &pgErr)
+
+	if pgErr == nil {
+		return false
+	}
+
 	return pgerrcode.IsConnectionException(pgErr.Code)
 
 }

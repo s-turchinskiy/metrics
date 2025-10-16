@@ -1,4 +1,5 @@
-package common
+// Package error Общие процедуры обработки ошибок
+package error
 
 import (
 	"fmt"

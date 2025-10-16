@@ -3,6 +3,7 @@ package reporter
 
 import (
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/common/hash"
 	"time"
 
 	"github.com/s-turchinskiy/metrics/cmd/agent/config"
@@ -12,7 +13,6 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
-	"github.com/s-turchinskiy/metrics/internal/common"
 )
 
 func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}) {
@@ -31,7 +31,7 @@ func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh cha
 
 		sender := httpresty.New(
 			fmt.Sprintf("%s/update/", h.ServerAddress),
-			common.СomputeHexadecimalSha256Hash,
+			hash.СomputeHexadecimalSha256Hash,
 		)
 
 		sendMetrics := sendmetrics.New(

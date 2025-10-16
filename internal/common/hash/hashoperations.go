@@ -1,4 +1,5 @@
-package common
+// Package hash Общие процедуры взаимодейсивя с хэшем
+package hash
 
 import (
 	"crypto/hmac"

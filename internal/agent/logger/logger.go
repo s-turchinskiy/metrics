@@ -1,3 +1,4 @@
+// Package logger Логирование для агента
 package logger
 
 import (

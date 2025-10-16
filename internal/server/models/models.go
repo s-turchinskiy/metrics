@@ -1,3 +1,4 @@
+// Package models Модели
 package models
 
 //go:generate easyjson models.go

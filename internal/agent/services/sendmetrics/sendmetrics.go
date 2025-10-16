@@ -1,3 +1,4 @@
+// Package sendmetrics Воркер отправки метрик
 package sendmetrics
 
 import (

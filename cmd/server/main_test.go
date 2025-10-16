@@ -48,22 +48,39 @@ func EmptyService() *service.Service {
 
 func TestMetricsHandler_UpdateMetric(t *testing.T) {
 
-	tests := []test{{
-		name:    "успешное добавление метрики",
-		method:  http.MethodPost,
-		request: "/update/gauge/someMetric/1.1",
-		storage: EmptyService(),
-		want: want{
-			contentType: handlers.ContentTypeTextHTML,
-			statusCode:  200,
-			storage: &service.Service{
-				Repository: &memcashed.MemCashed{
-					Gauge:   map[string]float64{"someMetric": 1.1},
-					Counter: make(map[string]int64),
+	tests := []test{
+		{
+			name:    "успешное добавление метрики gauge",
+			method:  http.MethodPost,
+			request: "/update/gauge/someMetric/1.1",
+			storage: EmptyService(),
+			want: want{
+				contentType: handlers.ContentTypeTextHTML,
+				statusCode:  200,
+				storage: &service.Service{
+					Repository: &memcashed.MemCashed{
+						Gauge:   map[string]float64{"someMetric": 1.1},
+						Counter: make(map[string]int64),
+					},
 				},
 			},
 		},
-	},
+		{
+			name:    "успешное добавление метрики counter",
+			method:  http.MethodPost,
+			request: "/update/counter/someMetric/2",
+			storage: EmptyService(),
+			want: want{
+				contentType: handlers.ContentTypeTextHTML,
+				statusCode:  200,
+				storage: &service.Service{
+					Repository: &memcashed.MemCashed{
+						Gauge:   make(map[string]float64),
+						Counter: map[string]int64{"someMetric": 2},
+					},
+				},
+			},
+		},
 		{
 			name:    "метод Get запрещен",
 			method:  http.MethodGet,
@@ -122,19 +139,20 @@ func TestMetricsHandler_UpdateMetric(t *testing.T) {
 
 func TestMetricsHandler_GetMetric(t *testing.T) {
 
-	tests := []test{{
-		name:    "запрос отсутствующей метрики",
-		method:  http.MethodGet,
-		request: "/value/gauge/someMetric",
-		storage: EmptyService(),
-		want: want{
-			contentType: handlers.ContentTypeTextHTML,
-			statusCode:  http.StatusNotFound,
-			response:    "not found",
-		},
-	},
+	tests := []test{
 		{
-			name:    "запрос присутствующей метрики",
+			name:    "запрос отсутствующей метрики",
+			method:  http.MethodGet,
+			request: "/value/gauge/someMetric",
+			storage: EmptyService(),
+			want: want{
+				contentType: handlers.ContentTypeTextHTML,
+				statusCode:  http.StatusNotFound,
+				response:    "not found",
+			},
+		},
+		{
+			name:    "запрос присутствующей метрики gauge",
 			method:  http.MethodGet,
 			request: "/value/gauge/someMetric",
 			storage: &service.Service{
@@ -147,6 +165,22 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 				contentType: handlers.ContentTypeTextHTML,
 				statusCode:  http.StatusOK,
 				response:    "1.23",
+			},
+		},
+		{
+			name:    "запрос присутствующей метрики counter",
+			method:  http.MethodGet,
+			request: "/value/counter/someMetric",
+			storage: &service.Service{
+				Repository: &memcashed.MemCashed{
+					Gauge:   make(map[string]float64),
+					Counter: map[string]int64{"someMetric": 2},
+				},
+			},
+			want: want{
+				contentType: handlers.ContentTypeTextHTML,
+				statusCode:  http.StatusOK,
+				response:    "2",
 			},
 		},
 	}
@@ -253,7 +287,18 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 				}`,
 	}
 
-	tests := []testingcommon.TestPostGzip{test1, test2, test3, test4, test5}
+	test6 := testingcommon.TestPostGzip{Name: "Битый json",
+		ResponseCode: http.StatusInternalServerError,
+		RequestBody: `{
+		    	"id" : "someMetric",
+				"type" : "counter",
+				"delta" : 5 fgfg,,,,
+				}`,
+
+		ResponseBody: ``,
+	}
+
+	tests := []testingcommon.TestPostGzip{test1, test2, test3, test4, test5, test6}
 	testingcommon.TestGzipCompression(t, handler, tests)
 }
 
@@ -263,7 +308,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 
 	rep := &memcashed.MemCashed{
 		Gauge:   map[string]float64{"someMetric": 1.23},
-		Counter: make(map[string]int64),
+		Counter: map[string]int64{"someMetric": 2},
 	}
 
 	h := &handlers.MetricsHandler{Service: service.New(rep, nil)}
@@ -299,7 +344,31 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 		}`,
 	}
 
-	tests := []testingcommon.TestPostGzip{test1, test2}
+	test3 := testingcommon.TestPostGzip{Name: "Counter проверка присутствующего значения",
+		ResponseCode: 200,
+		RequestBody: `{
+    	"id" : "someMetric",
+		"type" : "counter"
+		}`,
+
+		ResponseBody: `{
+    	"id" : "someMetric",
+		"type" : "counter",
+		"delta" : 2
+		}`,
+	}
+
+	test4 := testingcommon.TestPostGzip{Name: "Битый json",
+		ResponseCode: http.StatusInternalServerError,
+		RequestBody: `{
+    	"id" : "someMetric",
+		"type" : "counter"vsfcgvd
+		}`,
+
+		ResponseBody: ``,
+	}
+
+	tests := []testingcommon.TestPostGzip{test1, test2, test3, test4}
 	testingcommon.TestGzipCompression(t, handler, tests)
 
 }

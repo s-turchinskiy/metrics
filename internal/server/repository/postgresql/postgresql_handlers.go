@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
 	"time"
 
 	"github.com/jackc/pgerrcode"
@@ -13,7 +14,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/s-turchinskiy/metrics/internal/common"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 )
@@ -69,9 +69,9 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 		var pgErr *pgconn.PgError
 		errors.As(err, &pgErr)
 		if pgerrcode.IsSyntaxErrororAccessRuleViolation(pgErr.Code) {
-			return common.WrapError(fmt.Errorf("%w syntax error in request QueryInsertUpdateCounter", err))
+			return error2.WrapError(fmt.Errorf("%w syntax error in request QueryInsertUpdateCounter", err))
 		}
-		return common.WrapError(err)
+		return error2.WrapError(err)
 	}
 
 	return nil
@@ -146,7 +146,7 @@ func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value 
 			isExist = false
 			err = nil
 		} else {
-			return 0, false, common.WrapError(err)
+			return 0, false, error2.WrapError(err)
 		}
 	}
 
@@ -168,7 +168,7 @@ func (p *PostgreSQL) GetAllGauges(ctx context.Context) (map[string]float64, erro
 	err := p.db.SelectContext(ctx, &metrics, "SELECT metrics_name, value from postgres.gauges")
 
 	if err != nil {
-		return nil, common.WrapError(err)
+		return nil, error2.WrapError(err)
 	}
 	for _, data := range metrics {
 		result[data.MetricsName] = data.Value
@@ -212,7 +212,7 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
-		return common.WrapError(err)
+		return error2.WrapError(err)
 	}
 
 	defer tx.Rollback()
@@ -226,7 +226,7 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 			err = insertUpdatePortionGauges(ctx, portionData, tx)
 			if err != nil {
-				return common.WrapError(err)
+				return error2.WrapError(err)
 			}
 
 			for k := range portionData {
@@ -237,12 +237,12 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 	err = insertUpdatePortionGauges(ctx, portionData, tx)
 	if err != nil {
-		return common.WrapError(err)
+		return error2.WrapError(err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return common.WrapError(err)
+		return error2.WrapError(err)
 	}
 
 	return nil
@@ -279,7 +279,7 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 
 			err = insertUpdatePortionCounters(ctx, portionData, tx)
 			if err != nil {
-				return common.WrapError(err)
+				return error2.WrapError(err)
 			}
 
 			for k := range portionData {
@@ -290,12 +290,12 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 
 	err = insertUpdatePortionCounters(ctx, portionData, tx)
 	if err != nil {
-		return common.WrapError(err)
+		return error2.WrapError(err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return common.WrapError(err)
+		return error2.WrapError(err)
 	}
 
 	return nil
@@ -342,25 +342,25 @@ func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.Stor
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return 0, common.WrapError(err)
+		return 0, error2.WrapError(err)
 	}
 
 	result := tx.SendBatch(ctx, batch)
 
 	tag, err := result.Exec()
 	if err != nil {
-		return 0, common.WrapError(err)
+		return 0, error2.WrapError(err)
 	}
 
 	err = result.Close()
 	if err != nil {
 		_ = tx.Rollback(ctx)
-		return 0, common.WrapError(err)
+		return 0, error2.WrapError(err)
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		return 0, common.WrapError(err)
+		return 0, error2.WrapError(err)
 	}
 
 	return tag.RowsAffected(), nil

@@ -27,12 +27,6 @@ import (
 // @Router /value [post]
 func (h *MetricsHandler) GetTypedMetric(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodPost {
-		logger.Log.Infow("error, Method != Post", "Method", r.Method)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Log.Info("cannot decode request JSON body", zap.Error(err))

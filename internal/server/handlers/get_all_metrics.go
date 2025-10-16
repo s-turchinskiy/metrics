@@ -36,12 +36,6 @@ func (h *MetricsHandler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != http.MethodGet {
-		logger.Log.Infow("error, Method != Get", "Method", r.Method)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	result, err := h.Service.GetAllMetrics(r.Context())
 	if err != nil {
 		logger.Log.Info("error getting data", zap.Error(err))

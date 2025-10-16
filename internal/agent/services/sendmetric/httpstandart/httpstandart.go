@@ -1,9 +1,12 @@
+// Package httpstandart Отправка метрики через стандартный http клиент
 package httpstandart
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
+	"github.com/s-turchinskiy/metrics/internal/common/hash"
 	"io"
 	"net/http"
 
@@ -11,15 +14,14 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
-	"github.com/s-turchinskiy/metrics/internal/common"
 )
 
 type ReportMetricsHTTPStandart struct {
 	url      string
-	hashFunc common.HashFunc
+	hashFunc hash.HashFunc
 }
 
-func New(url string, hashFunc common.HashFunc) *ReportMetricsHTTPStandart {
+func New(url string, hashFunc hash.HashFunc) *ReportMetricsHTTPStandart {
 
 	return &ReportMetricsHTTPStandart{
 		url:      url,
@@ -31,7 +33,7 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 
 	data, err := json.Marshal(metric)
 	if err != nil {
-		return common.WrapError(fmt.Errorf("error json marshal data"))
+		return error2.WrapError(fmt.Errorf("error json marshal data"))
 	}
 
 	client := new(http.Client)
@@ -53,7 +55,7 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Log.Debugw(common.WrapError(fmt.Errorf("error read body")).Error())
+		logger.Log.Debugw(error2.WrapError(fmt.Errorf("error read body")).Error())
 		return err
 	}
 

@@ -1,3 +1,4 @@
+// Package settings Загрузка настроек при запуске программы
 package settings
 
 import (
@@ -233,7 +234,6 @@ func (d *database) String() string {
 		d.Host, d.Login, d.Password, d.DBName)
 }
 
-// 'postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable'
 func (d *database) Set(s string) error {
 
 	s = strings.Replace(s, "://", " ", 1)

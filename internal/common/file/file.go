@@ -1,3 +1,4 @@
+// Package file Общие процедуры взаимодействия с файлами
 package file
 
 import (

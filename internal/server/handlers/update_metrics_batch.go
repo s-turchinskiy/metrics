@@ -27,16 +27,10 @@ import (
 // @Router /updates [post]
 func (h *MetricsHandler) UpdateMetricsBatch(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodPost {
-		logger.Log.Infow("error, Method != Post", "Method", r.Method)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req []models.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Log.Info("cannot decode request JSON body", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 

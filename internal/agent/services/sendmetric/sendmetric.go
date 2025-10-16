@@ -1,3 +1,4 @@
+// Package sendmetric Интерфейс отправки метрики и 2 общих метода
 package sendmetric
 
 import (

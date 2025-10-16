@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/common/hash"
 	"testing"
 	"time"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
-	"github.com/s-turchinskiy/metrics/internal/common"
 )
 
 func BenchmarkAll(b *testing.B) {
@@ -23,7 +23,7 @@ func BenchmarkAll(b *testing.B) {
 
 	sender := httpresty.New(
 		fmt.Sprintf("%s/update/", h.ServerAddress),
-		common.СomputeHexadecimalSha256Hash,
+		hash.СomputeHexadecimalSha256Hash,
 	)
 
 	b.ResetTimer()

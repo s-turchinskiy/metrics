@@ -2,9 +2,9 @@ package hash
 
 import (
 	"bytes"
+	"github.com/s-turchinskiy/metrics/internal/common/hash"
 	"net/http"
 
-	"github.com/s-turchinskiy/metrics/internal/common"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
 )
 
@@ -25,7 +25,7 @@ func (hw *hashingResponseWriter) Write(b []byte) (int, error) {
 	hw.body.Write(b)
 
 	if !hw.statusCodeSet && hw.body.Len() > 0 {
-		hash := common.СomputeHexadecimalSha256Hash(settings.Settings.HashKey, hw.body.Bytes())
+		hash := hash.СomputeHexadecimalSha256Hash(settings.Settings.HashKey, hw.body.Bytes())
 		hw.Header().Set("HashSHA256", hash)
 	}
 	return hw.ResponseWriter.Write(b)
