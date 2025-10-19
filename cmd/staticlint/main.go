@@ -5,7 +5,7 @@ package main
 
 import (
 	noosexitinmainanalyzer "github.com/s-turchinskiy/metrics/internal/staticlint/noosexitinmain"
-	analysisstandard "github.com/s-turchinskiy/metrics/internal/staticlint/standard"
+	"github.com/s-turchinskiy/metrics/internal/staticlint/standard"
 	"github.com/s-turchinskiy/metrics/internal/staticlint/staticcheck"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
@@ -24,7 +24,7 @@ func main() {
 
 	var analyzers []*analysis.Analyzer
 
-	analyzers = append(analyzers, analysisstandard.GetStandardAnalyzers()...)
+	analyzers = append(analyzers, standard.GetStandardAnalyzers()...)
 	analyzers = append(analyzers, staticcheck.GetStaticCheckAnalyzers()...)
 
 	for _, a := range stylecheck.Analyzers {
