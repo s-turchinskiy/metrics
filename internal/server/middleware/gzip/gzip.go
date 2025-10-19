@@ -1,3 +1,4 @@
+// Package gzip Распаковка входящих данных из gzip, упаковка исходящих данных в gzip
 package gzip
 
 import (
@@ -19,6 +20,11 @@ type compressWriter struct {
 func GzipMiddleware(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if strings.Contains(r.RequestURI, "swagger") || strings.Contains(r.RequestURI, "debug") {
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
@@ -64,13 +70,12 @@ func (c *compressWriter) WriteHeader(statusCode int) {
 
 func (c *compressWriter) Write(p []byte) (int, error) {
 
-	if !c.statusCodeSet {
-		c.Header().Set("Content-Encoding", "gzip")
-	}
-
 	ContentType := c.Header().Get("Content-Type")
 	supportsContentType := slices.Contains(contentTypeForCompress, ContentType)
 	if supportsContentType {
+		if !c.statusCodeSet {
+			c.Header().Set("Content-Encoding", "gzip")
+		}
 		return c.zw.Write(p)
 	}
 

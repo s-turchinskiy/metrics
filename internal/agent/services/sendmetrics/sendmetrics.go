@@ -1,7 +1,9 @@
+// Package sendmetrics Воркер отправки метрик
 package sendmetrics
 
 import (
 	"errors"
+
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/retrier"

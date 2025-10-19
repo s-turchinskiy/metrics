@@ -1,16 +1,19 @@
+// Package services Сервис обновления метрик
 package services
 
 import (
 	"fmt"
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
-	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	"github.com/s-turchinskiy/metrics/internal/agent/models"
-	"github.com/shirou/gopsutil/v4/cpu"
-	"github.com/shirou/gopsutil/v4/mem"
 	"math/rand"
 	"reflect"
 	"runtime"
 	"time"
+
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
+
+	"github.com/s-turchinskiy/metrics/cmd/agent/config"
+	"github.com/s-turchinskiy/metrics/internal/agent/logger"
+	"github.com/s-turchinskiy/metrics/internal/agent/models"
 )
 
 var (
@@ -29,6 +32,7 @@ type MetricsHandler struct {
 	ServerAddress string
 }
 
+// UpdateMetrics Обновление метрик в хранилище
 func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 
 	ticker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
@@ -38,7 +42,7 @@ func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 		case <-doneCh:
 			return
 		default:
-			metrics, err := GetMetrics()
+			metrics, err := GetMetrics(1 * time.Second)
 			if err != nil {
 				logger.Log.Infoln("getMetrics error", err.Error())
 			}
@@ -56,7 +60,8 @@ func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 
 }
 
-func GetMetrics() (map[string]float64, error) {
+// GetMetrics Получение метрик из операционной системы
+func GetMetrics(cpuTime time.Duration) (map[string]float64, error) {
 
 	result := make(map[string]float64, len(metricsNames))
 
@@ -105,7 +110,7 @@ func GetMetrics() (map[string]float64, error) {
 	result["TotalMemory"] = float64(vm.Total)
 	result["FreeMemory"] = float64(vm.Free)
 
-	cpuPercent, err := cpu.Percent(1*time.Second, true)
+	cpuPercent, err := cpu.Percent(cpuTime, true)
 	if err != nil {
 		return nil, err
 	}

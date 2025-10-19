@@ -1,22 +1,26 @@
+// Package httpresty Отправка метрики через resty
 package httpresty
 
 import (
 	"encoding/json"
 	"fmt"
+	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
+	"github.com/s-turchinskiy/metrics/internal/common/hash"
+
 	"github.com/go-resty/resty/v2"
+
 	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
-	"github.com/s-turchinskiy/metrics/internal/common"
 )
 
 type ReportMetricsHTTPResty struct {
 	client   *resty.Client
 	url      string
-	hashFunc common.HashFunc
+	hashFunc hash.HashFunc
 }
 
-func New(url string, hashFunc common.HashFunc) *ReportMetricsHTTPResty {
+func New(url string, hashFunc hash.HashFunc) *ReportMetricsHTTPResty {
 
 	return &ReportMetricsHTTPResty{
 		client:   resty.New(),
@@ -29,7 +33,7 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 
 	body, err := json.Marshal(metric)
 	if err != nil {
-		return common.WrapError(fmt.Errorf("error json marshal data"))
+		return error2.WrapError(fmt.Errorf("error json marshal data"))
 	}
 
 	request := r.client.R().

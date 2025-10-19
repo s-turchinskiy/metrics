@@ -1,11 +1,13 @@
+// Package file Общие процедуры взаимодействия с файлами
 package file
 
 import (
 	"errors"
-	yamlcomment "github.com/zijiren233/yaml-comment"
-	"gopkg.in/yaml.v3"
 	"io"
 	"os"
+
+	yamlcomment "github.com/zijiren233/yaml-comment"
+	"gopkg.in/yaml.v3"
 )
 
 func SaveYaml(data *any, filename string) error {

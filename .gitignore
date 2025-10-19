@@ -30,3 +30,4 @@ server.log
 store.txt
 secretSettings.yaml
 .env
+coverage.html

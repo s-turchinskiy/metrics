@@ -1,7 +1,9 @@
+// Package service Сервис обработки запросов
 package service
 
 import (
 	"context"
+
 	"github.com/s-turchinskiy/metrics/internal/server/models"
 )
 

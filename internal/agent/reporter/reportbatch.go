@@ -3,12 +3,14 @@ package reporter
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/go-resty/resty/v2"
+
 	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
-	"net/http"
-	"time"
 )
 
 func ReportMetricsBatch(h *services.MetricsHandler, errors chan error) {

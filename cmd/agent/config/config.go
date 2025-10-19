@@ -1,3 +1,4 @@
+// Package config Конфигурирование текущего сервиса
 package config
 
 import (

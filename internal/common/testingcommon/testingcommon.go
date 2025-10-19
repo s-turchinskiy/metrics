@@ -1,14 +1,31 @@
+// Package testingcommon Общие процедуры тестирования
 package testingcommon
 
 import (
 	"bytes"
 	"compress/gzip"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+type Test struct {
+	Name        string
+	Method      string
+	Address     string
+	ContentType string
+	Request     string
+	Want        Want
+}
+
+type Want struct {
+	ContentType string
+	StatusCode  int
+	Response    string
+}
 
 type TestPostGzip struct {
 	Name         string
