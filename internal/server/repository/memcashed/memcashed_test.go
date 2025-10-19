@@ -1,5 +1,7 @@
 package memcashed
 
+//lint:ignore
+
 import (
 	"context"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
