@@ -47,4 +47,9 @@ func main() {
 		analyzers...,
 	)
 
+	//https://github.com/yandex/go-linters тут используют unitchecker, а не multichecker
+	/*unitchecker.Main(
+		analyzers...,
+	)*/
+
 }
