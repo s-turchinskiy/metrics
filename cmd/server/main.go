@@ -35,9 +35,9 @@ func main() {
 		logger.Log.Debugw("Error loading .env file", "error", err.Error())
 	}
 
-	if err2 := settings.GetSettings(); err2 != nil {
-		logger.Log.Errorw("Get Settings error", "error", err2.Error())
-		log.Fatal(err2)
+	if err = settings.GetSettings(); err != nil {
+		logger.Log.Errorw("Get Settings error", "error", err.Error())
+		log.Fatal(err)
 	}
 
 	var rep repository.Repository
@@ -63,11 +63,11 @@ func main() {
 	errors := make(chan error)
 
 	go func() {
-		err2 := run(metricsHandler)
-		if err2 != nil {
+		err = run(metricsHandler)
+		if err != nil {
 
-			logger.Log.Errorw("Server startup error", "error", err2.Error())
-			errors <- err2
+			logger.Log.Errorw("Server startup error", "error", err.Error())
+			errors <- err
 			return
 		}
 	}()

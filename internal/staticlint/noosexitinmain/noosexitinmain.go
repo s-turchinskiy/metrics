@@ -38,13 +38,9 @@ func runNoOsExit(pass *analysis.Pass) (interface{}, error) {
 					return true
 				}
 
-				switch fun := call.Fun.(type) {
-				case *ast.SelectorExpr:
-					pkgIdent, ok := fun.X.(*ast.Ident)
-					if !ok {
-						return true
-					}
-					if pkgIdent.Name == "os" && fun.Sel.Name == "Exit" {
+				if fun, ok := call.Fun.(*ast.SelectorExpr); ok {
+					if pkgIdent, ok := fun.X.(*ast.Ident); ok && pkgIdent.Name == "os" && fun.Sel.Name == "Exit" {
+						//вместо call.Lparen можно также юзать fun.Pos()
 						pass.Reportf(call.Lparen, "forbids call os.Exit in main.main()")
 					}
 				}

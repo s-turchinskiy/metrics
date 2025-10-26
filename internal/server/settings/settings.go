@@ -89,7 +89,7 @@ func (s ProgramSettings) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 			encoder.AddString("Store", "Memory")
 		}
 	default:
-		panic("unhandled default case")
+		logger.Log.Fatal("unhandled default case")
 	}
 
 	return err

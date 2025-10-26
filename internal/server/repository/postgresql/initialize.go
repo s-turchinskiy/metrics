@@ -49,8 +49,8 @@ func Initialize(ctx context.Context) (repository.Repository, error) {
 	if err != nil {
 		return nil, error2.WrapError(err)
 	}
-	if err2 := db.PingContext(ctx); err2 != nil {
-		return nil, error2.WrapError(err2)
+	if err = db.PingContext(ctx); err != nil {
+		return nil, error2.WrapError(err)
 	}
 
 	db.SetConnMaxLifetime(time.Hour)
