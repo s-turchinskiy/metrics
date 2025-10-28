@@ -27,7 +27,7 @@ func init() {
 }
 
 func main() {
-	
+
 	ctx := context.Background()
 
 	err := godotenv.Load("./cmd/server/.env")

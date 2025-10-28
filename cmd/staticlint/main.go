@@ -17,7 +17,6 @@ import (
 	"golang.yandex/linters/passes/remindercheck"
 	"golang.yandex/linters/passes/returnstruct"
 	"golang.yandex/linters/passes/structtagcase"
-	"honnef.co/go/tools/stylecheck"
 )
 
 func main() {
@@ -26,10 +25,6 @@ func main() {
 
 	analyzers = append(analyzers, standard.GetStandardAnalyzers()...)
 	analyzers = append(analyzers, staticcheck.GetStaticCheckAnalyzers()...)
-
-	for _, a := range stylecheck.Analyzers {
-		analyzers = append(analyzers, a.Analyzer)
-	}
 
 	analyzers = append(analyzers,
 		noosexitinmainanalyzer.AnalyzerNoOsExit,
