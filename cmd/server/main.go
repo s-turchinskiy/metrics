@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	myos "os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -28,6 +30,7 @@ func init() {
 
 func main() {
 
+	fmt.Println(myos.Getwd())
 	ctx := context.Background()
 
 	err := godotenv.Load("./cmd/server/.env")

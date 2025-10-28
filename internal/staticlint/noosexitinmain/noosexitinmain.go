@@ -3,6 +3,7 @@ package noosexitinmainanalyzer
 
 import (
 	"go/ast"
+	"go/types"
 	"golang.org/x/tools/go/analysis"
 	"strings"
 )
@@ -39,9 +40,12 @@ func runNoOsExit(pass *analysis.Pass) (interface{}, error) {
 				}
 
 				if fun, ok := call.Fun.(*ast.SelectorExpr); ok {
-					if pkgIdent, ok := fun.X.(*ast.Ident); ok && pkgIdent.Name == "os" && fun.Sel.Name == "Exit" {
-						//вместо call.Lparen можно также юзать fun.Pos()
-						pass.Reportf(call.Lparen, "forbids call os.Exit in main.main()")
+					if pkgIdent, ok := fun.X.(*ast.Ident); ok {
+						if pkgName, ok := pass.TypesInfo.Uses[pkgIdent].(*types.PkgName); ok &&
+							pkgName.Imported().Name() == "os" && fun.Sel.Name == "Exit" {
+							//вместо call.Lparen можно также юзать fun.Pos()
+							pass.Reportf(call.Lparen, "forbids call os.Exit in main.main()")
+						}
 					}
 				}
 				return true
