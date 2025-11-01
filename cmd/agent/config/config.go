@@ -2,8 +2,11 @@
 package config
 
 import (
+	"crypto/rsa"
 	"errors"
 	"flag"
+	"fmt"
+	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
 	"log"
 	"os"
 	"runtime"
@@ -17,10 +20,12 @@ type NetAddress struct {
 }
 
 var (
-	PollInterval   int = 2
-	ReportInterval int = 10
-	HashKey        string
-	RateLimit      int //количество одновременно исходящих запросов на сервер
+	PollInterval     int = 2
+	ReportInterval   int = 10
+	HashKey          string
+	RateLimit        int //Количество одновременно исходящих запросов на сервер
+	rsaPublicKeyPath string
+	RSAPublicKey     *rsa.PublicKey
 )
 
 func ParseFlags(addr *NetAddress) {
@@ -30,6 +35,7 @@ func ParseFlags(addr *NetAddress) {
 	flag.IntVar(&ReportInterval, "r", 10, "report interval")
 	flag.StringVar(&HashKey, "k", "", "HashSHA256 key")
 	flag.IntVar(&RateLimit, "l", runtime.NumCPU(), "number of concurrently outgoing requests to server")
+	flag.StringVar(&rsaPublicKeyPath, "crypto-key", "", "Путь до файла с публичным ключом")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
@@ -68,6 +74,19 @@ func ParseFlags(addr *NetAddress) {
 
 	if value := os.Getenv("KEY"); value != "" {
 		HashKey = value
+	}
+
+	if value := os.Getenv("CRYPTO_KEY"); value != "" {
+		rsaPublicKeyPath = value
+	}
+
+	if rsaPublicKeyPath != "" {
+		var err error
+		RSAPublicKey, err = rsautil.ReadPublicKey(rsaPublicKeyPath)
+		if err != nil {
+			err = fmt.Errorf("path: %s, error: %w", rsaPublicKeyPath, err)
+			log.Fatal(err)
+		}
 	}
 
 }

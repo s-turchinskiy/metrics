@@ -50,7 +50,7 @@ func main() {
 	defer close(doneCh)
 
 	go services.UpdateMetrics(metricsHandler, errorsChan, doneCh)
-	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh)
+	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh, config.RSAPublicKey)
 	//go reporter.ReportMetricsBatch(metricsHandler, errors)
 
 	err = <-errorsChan

@@ -6,6 +6,8 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/gzip"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/hash"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
+	rsamiddleware "github.com/s-turchinskiy/metrics/internal/server/middleware/rsa"
+	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	httpswagger "github.com/swaggo/http-swagger"
 	"net/http/pprof"
 )
@@ -35,10 +37,11 @@ import (
 func Router(h *MetricsHandler) chi.Router {
 
 	router := chi.NewRouter()
-	router.Use(logger.Logger)
 	router.Use(hash.HashWriteMiddleware)
 	router.Use(hash.HashReadMiddleware)
+	router.Use(rsamiddleware.RSADecrypt(settings.Settings.RSAPrivateKey))
 	router.Use(gzip.GzipMiddleware)
+	router.Use(logger.Logger)
 	router.Route("/update", func(r chi.Router) {
 		r.Post("/", h.UpdateMetricJSON)
 		r.Post("/{MetricsType}/{MetricsName}/{MetricsValue}", h.UpdateMetric)
