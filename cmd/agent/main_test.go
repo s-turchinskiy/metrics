@@ -24,6 +24,7 @@ func BenchmarkAll(b *testing.B) {
 	sender := httpresty.New(
 		fmt.Sprintf("%s/update/", h.ServerAddress),
 		hash.СomputeHexadecimalSha256Hash,
+		nil,
 	)
 
 	b.ResetTimer()
