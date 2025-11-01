@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
+	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -63,7 +66,7 @@ func main() {
 	errors := make(chan error)
 
 	go func() {
-		err = run(metricsHandler)
+		err = run(metricsHandler, settings.Settings.EnableHTTPS)
 		if err != nil {
 
 			logger.Log.Errorw("Server startup error", "error", err.Error())
@@ -98,11 +101,26 @@ func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandl
 	}
 }
 
-func run(h *handlers.MetricsHandler) error {
+func run(h *handlers.MetricsHandler, enableHTTPS bool) error {
 
 	router := handlers.Router(h)
 
 	logger.Log.Info("Running server", zap.String("address", settings.Settings.Address.String()))
 
-	return http.ListenAndServe(settings.Settings.Address.String(), router)
+	if enableHTTPS {
+
+		pathCert := "./cmd/server/certificate/cert.pem"
+		pathRSAPrivateKey := "./cmd/server/certificate/rsa_private_key.pem"
+		if _, err := os.Stat(pathCert); err != nil && errors.Is(err, os.ErrNotExist) {
+			err = rsautil.GenerateCertificateHTTPS(pathCert, pathRSAPrivateKey)
+			if err != nil {
+				return err
+			}
+		}
+
+		return http.ListenAndServeTLS(settings.Settings.Address.String(), pathCert, pathRSAPrivateKey, router)
+
+	} else {
+		return http.ListenAndServe(settings.Settings.Address.String(), router)
+	}
 }

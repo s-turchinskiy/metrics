@@ -39,6 +39,7 @@ type ProgramSettings struct {
 	Database                      database   `yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
 	HashKey                       string     `yaml:"HASH_KEY" lc:"HashSHA256 ключ для обмена между агентом и сервером"`
 	RSAPrivateKeyPath             string     `yaml:"CRYPTO_KEY" lc:"Путь к приватному ключу RSA"`
+	EnableHTTPS                   bool       `yaml:"ENABLE_HTTPS" lc:"Включить HTTPS"`
 	RSAPrivateKey                 *rsa.PrivateKey
 	AsynchronousWritingDataToFile bool
 	Store                         Store
@@ -148,6 +149,7 @@ func GetSettings() error {
 	flag.Var(&Settings.Database, "d", "path to database")
 	flag.StringVar(&Settings.HashKey, "k", "", "HashSHA256 key")
 	flag.StringVar(&Settings.RSAPrivateKeyPath, "crypto-key", "", "Путь до файла с приватным ключом")
+	flag.BoolVar(&Settings.EnableHTTPS, "s", Settings.EnableHTTPS, "Определяет включен ли HTTPS")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
@@ -194,6 +196,14 @@ func GetSettings() error {
 			return err
 		}
 		Settings.Database.FlagDatabaseDSN = DatabaseDsn
+	}
+
+	if value := os.Getenv("ENABLE_HTTPS"); value != "" {
+		enable, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		Settings.EnableHTTPS = enable
 	}
 
 	Settings.AsynchronousWritingDataToFile = Settings.StoreInterval != 0

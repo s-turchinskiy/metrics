@@ -1,14 +1,19 @@
 package rsautil
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
+	"math/big"
+	"net"
 	"os"
+	"time"
 )
 
 func ReadPublicKey(publicKeyPath string) (*rsa.PublicKey, error) {
@@ -102,4 +107,55 @@ func Decrypt(privateKey *rsa.PrivateKey, message []byte) ([]byte, error) {
 	}
 	return plaintext, nil
 
+}
+
+func GenerateCertificateHTTPS(pathCert, pathRSAPrivateKey string) error {
+
+	templateCert := &x509.Certificate{
+		SerialNumber: big.NewInt(1658),
+		Subject: pkix.Name{
+			Organization: []string{"Yandex.Praktikum"},
+			Country:      []string{"RU"},
+		},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		SubjectKeyId: []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return err
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, templateCert, templateCert, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return err
+	}
+
+	var certPEM bytes.Buffer
+	pem.Encode(&certPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	})
+
+	var privateKeyPEM bytes.Buffer
+	pem.Encode(&privateKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	})
+
+	err = os.WriteFile(pathCert, certPEM.Bytes(), 0666)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(pathRSAPrivateKey, privateKeyPEM.Bytes(), 0666)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
