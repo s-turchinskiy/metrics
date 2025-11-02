@@ -33,15 +33,17 @@ func main() {
 		logger.Log.Debugw("Error loading .env file", "error", err.Error())
 	}
 
-	addr := config.NetAddress{Host: "localhost", Port: 8080}
-	config.ParseFlags(&addr)
+	err = config.ParseFlags()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	metricsHandler := &services.MetricsHandler{
 		Storage: &repositories.MetricsStorage{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
 		},
-		ServerAddress: "http://" + addr.String(),
+		ServerAddress: "http://" + config.Config.Addr.String(),
 	}
 
 	errorsChan := make(chan error)
@@ -50,7 +52,7 @@ func main() {
 	defer close(doneCh)
 
 	go services.UpdateMetrics(metricsHandler, errorsChan, doneCh)
-	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh, config.RSAPublicKey)
+	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh, config.Config.RSAPublicKey)
 	//go reporter.ReportMetricsBatch(metricsHandler, errors)
 
 	err = <-errorsChan

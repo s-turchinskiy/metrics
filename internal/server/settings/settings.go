@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	configutils "github.com/s-turchinskiy/metrics/internal/common/config"
 	"os"
 	"reflect"
 	"strconv"
@@ -128,6 +129,13 @@ func GetSettings() error {
 		FileStoragePath: "store.txt",
 		Restore:         true,
 		Database:        database{Host: "localhost", DBName: "metrics", Login: "metrics"},
+	}
+
+	configFilePath := configutils.GetConfigFilePath()
+	if configFilePath != "" {
+		if err := loadConfigFromJSON(&Settings, configFilePath); err != nil {
+			return fmt.Errorf("failed to load config from JSON: %w", err)
+		}
 	}
 
 	err := file.ReadSaveYaml(&Settings, filenameSettings)

@@ -51,9 +51,9 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 		SetHeader("Content-Type", "application/json").
 		SetBody(body)
 
-	if config.HashKey != "" && r.hashFunc != nil {
+	if config.Config.HashKey != "" && r.hashFunc != nil {
 
-		hash := r.hashFunc(config.HashKey, body)
+		hash := r.hashFunc(config.Config.HashKey, body)
 		request.SetHeader("HashSHA256", hash)
 	}
 
