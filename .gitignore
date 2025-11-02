@@ -25,9 +25,11 @@ vendor/
 .vscode
 
 metricstest
+staticlint
 agent.log
 server.log
 store.txt
 secretSettings.yaml
 .env
 coverage.html
+cmd/server/certificate/

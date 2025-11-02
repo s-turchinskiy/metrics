@@ -35,7 +35,7 @@ type MetricsHandler struct {
 // UpdateMetrics Обновление метрик в хранилище
 func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 
-	ticker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(config.Config.PollInterval) * time.Second)
 	for range ticker.C {
 
 		select {

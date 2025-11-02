@@ -17,7 +17,7 @@ func ReportMetricsBatch(h *services.MetricsHandler, errors chan error) {
 
 	url := fmt.Sprintf("%s/updates/", h.ServerAddress)
 
-	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(config.Config.ReportInterval) * time.Second)
 	for range ticker.C {
 
 		client := resty.New()

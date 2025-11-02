@@ -2,6 +2,7 @@
 package reporter
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/common/hash"
 	"time"
@@ -15,9 +16,9 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
 )
 
-func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}) {
+func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}, rsaPublicKey *rsa.PublicKey) {
 
-	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(config.Config.ReportInterval) * time.Second)
 	for range ticker.C {
 
 		metrics, err := h.Storage.GetMetrics()
@@ -32,6 +33,7 @@ func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh cha
 		sender := httpresty.New(
 			fmt.Sprintf("%s/update/", h.ServerAddress),
 			hash.СomputeHexadecimalSha256Hash,
+			rsaPublicKey,
 		)
 
 		sendMetrics := sendmetrics.New(
@@ -41,7 +43,7 @@ func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh cha
 			retrier.ReportMetricRetry1{},
 		)
 
-		for w := 1; w <= config.RateLimit; w++ {
+		for w := 1; w <= config.Config.RateLimit; w++ {
 			go sendMetrics.WorkerSender()
 		}
 
