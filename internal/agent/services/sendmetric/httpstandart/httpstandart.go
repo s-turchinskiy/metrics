@@ -40,9 +40,9 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 	request, _ := http.NewRequest("POST", r.url, bytes.NewReader(data))
 	request.Header.Add("Content-Type", "application/json")
 
-	if config.HashKey != "" && r.hashFunc != nil {
+	if config.Config.HashKey != "" && r.hashFunc != nil {
 
-		hash := r.hashFunc(config.HashKey, data)
+		hash := r.hashFunc(config.Config.HashKey, data)
 		request.Header.Add("HashSHA256", hash)
 	}
 
