@@ -6,7 +6,7 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/gzip"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/hash"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
-	httpSwagger "github.com/swaggo/http-swagger"
+	httpswagger "github.com/swaggo/http-swagger"
 	"net/http/pprof"
 )
 
@@ -55,7 +55,7 @@ func Router(h *MetricsHandler) chi.Router {
 	})
 
 	router.Get(`/`, h.GetAllMetrics)
-	router.Mount("/swagger", httpSwagger.WrapHandler)
+	router.Mount("/swagger", httpswagger.WrapHandler)
 
 	router.Route("/debug/pprof", func(r chi.Router) {
 		r.Get("/", pprof.Index)

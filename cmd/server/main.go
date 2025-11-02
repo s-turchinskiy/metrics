@@ -35,7 +35,7 @@ func main() {
 		logger.Log.Debugw("Error loading .env file", "error", err.Error())
 	}
 
-	if err := settings.GetSettings(); err != nil {
+	if err = settings.GetSettings(); err != nil {
 		logger.Log.Errorw("Get Settings error", "error", err.Error())
 		log.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func main() {
 	errors := make(chan error)
 
 	go func() {
-		err := run(metricsHandler)
+		err = run(metricsHandler)
 		if err != nil {
 
 			logger.Log.Errorw("Server startup error", "error", err.Error())

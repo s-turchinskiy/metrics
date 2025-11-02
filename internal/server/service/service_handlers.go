@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
 	"os"
 	"strconv"
 	"sync"
@@ -395,9 +396,9 @@ func (s *Service) LoadMetricsFromFile(ctx context.Context) error {
 	data, err := os.ReadFile(settings.Settings.FileStoragePath)
 
 	if errors.Is(err, os.ErrNotExist) {
-		dir, err := os.Getwd()
-		if err != nil {
-			return err
+		dir, err2 := os.Getwd()
+		if err2 != nil {
+			return error2.WrapError(fmt.Errorf("couldn't get the current directory, %w", err2))
 		}
 
 		logger.Log.Debug(fmt.Sprintf("file %s%s not exist", dir, settings.Settings.FileStoragePath))

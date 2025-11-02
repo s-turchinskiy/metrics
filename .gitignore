@@ -25,6 +25,7 @@ vendor/
 .vscode
 
 metricstest
+staticlint
 agent.log
 server.log
 store.txt
