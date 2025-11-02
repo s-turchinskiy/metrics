@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/joho/godotenv"
@@ -12,7 +13,16 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 )
 
+// go run -ldflags "-X main.buildVersion=v1.0.1 -X main.buildDate=20.10.2025 -X main.buildCommit=Comment"
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+)
+
 func main() {
+
+	printBuildInfo()
 
 	if err := logger.Initialize(); err != nil {
 		log.Fatal(err)
@@ -40,10 +50,16 @@ func main() {
 	defer close(doneCh)
 
 	go services.UpdateMetrics(metricsHandler, errorsChan, doneCh)
-	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh)
+	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh, config.RSAPublicKey)
 	//go reporter.ReportMetricsBatch(metricsHandler, errors)
 
 	err = <-errorsChan
 	log.Fatal(err)
 
+}
+
+func printBuildInfo() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
 }

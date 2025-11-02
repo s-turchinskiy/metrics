@@ -2,9 +2,11 @@
 package settings
 
 import (
+	"crypto/rsa"
 	"errors"
 	"flag"
 	"fmt"
+	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
 	"os"
 	"strconv"
 	"strings"
@@ -36,6 +38,9 @@ type ProgramSettings struct {
 	Restore                       bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
 	Database                      database   `yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
 	HashKey                       string     `yaml:"HASH_KEY" lc:"HashSHA256 ключ для обмена между агентом и сервером"`
+	RSAPrivateKeyPath             string     `yaml:"CRYPTO_KEY" lc:"Путь к приватному ключу RSA"`
+	EnableHTTPS                   bool       `yaml:"ENABLE_HTTPS" lc:"Включить HTTPS"`
+	RSAPrivateKey                 *rsa.PrivateKey
 	AsynchronousWritingDataToFile bool
 	Store                         Store
 }
@@ -89,7 +94,7 @@ func (s ProgramSettings) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 			encoder.AddString("Store", "Memory")
 		}
 	default:
-		panic("unhandled default case")
+		logger.Log.Fatal("unhandled default case")
 	}
 
 	return err
@@ -143,6 +148,8 @@ func GetSettings() error {
 	flag.BoolVar(&Settings.Restore, "r", Settings.Restore, "Определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
 	flag.Var(&Settings.Database, "d", "path to database")
 	flag.StringVar(&Settings.HashKey, "k", "", "HashSHA256 key")
+	flag.StringVar(&Settings.RSAPrivateKeyPath, "crypto-key", "", "Путь до файла с приватным ключом")
+	flag.BoolVar(&Settings.EnableHTTPS, "s", Settings.EnableHTTPS, "Определяет включен ли HTTPS")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
@@ -177,14 +184,26 @@ func GetSettings() error {
 		Settings.HashKey = value
 	}
 
+	if value := os.Getenv("CRYPTO_KEY"); value != "" {
+		Settings.RSAPrivateKeyPath = value
+	}
+
 	DatabaseDsn := os.Getenv("DATABASE_DSN")
 	logger.Log.Debug("Received DatabaseDsn from env: ", DatabaseDsn)
 	if DatabaseDsn != "" {
-		err := Settings.Database.Set(DatabaseDsn)
+		err = Settings.Database.Set(DatabaseDsn)
 		if err != nil {
 			return err
 		}
 		Settings.Database.FlagDatabaseDSN = DatabaseDsn
+	}
+
+	if value := os.Getenv("ENABLE_HTTPS"); value != "" {
+		enable, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		Settings.EnableHTTPS = enable
 	}
 
 	Settings.AsynchronousWritingDataToFile = Settings.StoreInterval != 0
@@ -195,6 +214,14 @@ func GetSettings() error {
 
 	if DatabaseDsn != "" || isFlagPassed("d") {
 		Settings.Store = Database
+	}
+
+	if Settings.RSAPrivateKeyPath != "" {
+		Settings.RSAPrivateKey, err = rsautil.ReadPrivateKey(Settings.RSAPrivateKeyPath)
+		if err != nil {
+			err = fmt.Errorf("path: %s, error: %w", Settings.RSAPrivateKeyPath, err)
+			return err
+		}
 	}
 
 	logger.LogNoSugar.Info("Settings", zap.Inline(Settings)) //если Sugar, то выводит без имен

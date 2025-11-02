@@ -1,0 +1,1 @@
+//go generate ./internal/staticlint/standard/generate/generate_standard.go

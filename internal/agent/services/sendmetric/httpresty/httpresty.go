@@ -2,10 +2,12 @@
 package httpresty
 
 import (
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
 	"github.com/s-turchinskiy/metrics/internal/common/hash"
+	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
 
 	"github.com/go-resty/resty/v2"
 
@@ -15,23 +17,32 @@ import (
 )
 
 type ReportMetricsHTTPResty struct {
-	client   *resty.Client
-	url      string
-	hashFunc hash.HashFunc
+	client       *resty.Client
+	url          string
+	hashFunc     hash.HashFunc
+	rsaPublicKey *rsa.PublicKey
 }
 
-func New(url string, hashFunc hash.HashFunc) *ReportMetricsHTTPResty {
+func New(url string, hashFunc hash.HashFunc, rsaPublicKey *rsa.PublicKey) *ReportMetricsHTTPResty {
 
 	return &ReportMetricsHTTPResty{
-		client:   resty.New(),
-		url:      url,
-		hashFunc: hashFunc,
+		client:       resty.New(),
+		url:          url,
+		hashFunc:     hashFunc,
+		rsaPublicKey: rsaPublicKey,
 	}
 }
 
 func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 
 	body, err := json.Marshal(metric)
+	if r.rsaPublicKey != nil {
+		body, err = rsautil.Encrypt(r.rsaPublicKey, body)
+		if err != nil {
+			return err
+		}
+	}
+
 	if err != nil {
 		return error2.WrapError(fmt.Errorf("error json marshal data"))
 	}

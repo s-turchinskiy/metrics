@@ -17,25 +17,20 @@ func TestMemCashed_CountCounters(t *testing.T) {
 		Gauge   map[string]float64
 		Counter map[string]int64
 	}
-	type args struct {
-		ctx context.Context
-	}
+
 	tests := []struct {
 		name   string
 		fields fields
-		args   args
 		want   int
 	}{
 		{
 			name:   "Количество Counter = 0",
 			fields: fields{Counter: make(map[string]int64)},
-			args:   args{ctx: context.Background()},
 			want:   0,
 		},
 		{
 			name:   "Количество Counter = 1",
 			fields: fields{Counter: counterWithValue},
-			args:   args{ctx: context.Background()},
 			want:   1,
 		},
 	}
@@ -45,7 +40,7 @@ func TestMemCashed_CountCounters(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			if got := m.CountCounters(tt.args.ctx); got != tt.want {
+			if got := m.CountCounters(context.Background()); got != tt.want {
 				t.Errorf("CountCounters() = %v, want %v", got, tt.want)
 			}
 		})
@@ -61,25 +56,19 @@ func TestMemCashed_CountGauges(t *testing.T) {
 		Gauge   map[string]float64
 		Counter map[string]int64
 	}
-	type args struct {
-		ctx context.Context
-	}
 	tests := []struct {
 		name   string
 		fields fields
-		args   args
 		want   int
 	}{
 		{
 			name:   "Количество Gauge = 0",
 			fields: fields{Gauge: make(map[string]float64)},
-			args:   args{ctx: context.Background()},
 			want:   0,
 		},
 		{
 			name:   "Количество Gauge = 1",
 			fields: fields{Gauge: gaugeWithValue},
-			args:   args{ctx: context.Background()},
 			want:   1,
 		},
 	}
@@ -89,7 +78,7 @@ func TestMemCashed_CountGauges(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			if got := m.CountGauges(tt.args.ctx); got != tt.want {
+			if got := m.CountGauges(context.Background()); got != tt.want {
 				t.Errorf("CountGauges() = %v, want %v", got, tt.want)
 			}
 		})
@@ -105,22 +94,15 @@ func TestMemCashed_GetAllCounters(t *testing.T) {
 		Gauge   map[string]float64
 		Counter map[string]int64
 	}
-	type args struct {
-		ctx context.Context
-	}
 	tests := []struct {
 		name    string
 		fields  fields
-		args    args
 		want    map[string]int64
 		wantErr bool
 	}{
 		{
-			name:   "Получение всех Counter",
-			fields: fields{Counter: counterWithValue},
-			args: args{
-				ctx: context.Background(),
-			},
+			name:    "Получение всех Counter",
+			fields:  fields{Counter: counterWithValue},
 			want:    counterWithValue,
 			wantErr: false,
 		},
@@ -131,7 +113,7 @@ func TestMemCashed_GetAllCounters(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			got, err := m.GetAllCounters(tt.args.ctx)
+			got, err := m.GetAllCounters(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetAllCounters() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -152,22 +134,15 @@ func TestMemCashed_GetAllGauges(t *testing.T) {
 		Gauge   map[string]float64
 		Counter map[string]int64
 	}
-	type args struct {
-		ctx context.Context
-	}
 	tests := []struct {
 		name    string
 		fields  fields
-		args    args
 		want    map[string]float64
 		wantErr bool
 	}{
 		{
-			name:   "Получение всех Gauge",
-			fields: fields{Gauge: gaugeWithValue},
-			args: args{
-				ctx: context.Background(),
-			},
+			name:    "Получение всех Gauge",
+			fields:  fields{Gauge: gaugeWithValue},
 			want:    gaugeWithValue,
 			wantErr: false,
 		},
@@ -178,7 +153,7 @@ func TestMemCashed_GetAllGauges(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			got, err := m.GetAllGauges(tt.args.ctx)
+			got, err := m.GetAllGauges(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetAllGauges() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -200,7 +175,6 @@ func TestMemCashed_GetGauge(t *testing.T) {
 		Counter map[string]int64
 	}
 	type args struct {
-		ctx         context.Context
 		metricsName string
 	}
 	tests := []struct {
@@ -214,7 +188,7 @@ func TestMemCashed_GetGauge(t *testing.T) {
 		{
 			name:      "Получение Gauge",
 			fields:    fields{Gauge: gaugeWithValue},
-			args:      args{ctx: context.Background(), metricsName: "name"},
+			args:      args{metricsName: "name"},
 			wantValue: 1,
 			wantExist: true,
 			wantErr:   false,
@@ -226,7 +200,7 @@ func TestMemCashed_GetGauge(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			value, exist, err := m.GetGauge(tt.args.ctx, tt.args.metricsName)
+			value, exist, err := m.GetGauge(context.Background(), tt.args.metricsName)
 
 			assert.Equal(t, tt.wantValue, value)
 			assert.Equal(t, tt.wantExist, exist)
@@ -241,13 +215,9 @@ func TestMemCashed_Ping(t *testing.T) {
 		Gauge   map[string]float64
 		Counter map[string]int64
 	}
-	type args struct {
-		ctx context.Context
-	}
 	tests := []struct {
 		name    string
 		fields  fields
-		args    args
 		want    []byte
 		wantErr bool
 	}{
@@ -261,7 +231,7 @@ func TestMemCashed_Ping(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			got, err := m.Ping(tt.args.ctx)
+			got, err := m.Ping(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Ping() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -279,7 +249,6 @@ func TestMemCashed_ReloadAllCounters(t *testing.T) {
 		Counter map[string]int64
 	}
 	type args struct {
-		ctx      context.Context
 		newValue map[string]int64
 	}
 	tests := []struct {
@@ -299,7 +268,7 @@ func TestMemCashed_ReloadAllCounters(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			if err := m.ReloadAllCounters(tt.args.ctx, tt.args.newValue); (err != nil) != tt.wantErr {
+			if err := m.ReloadAllCounters(context.Background(), tt.args.newValue); (err != nil) != tt.wantErr {
 				t.Errorf("ReloadAllCounters() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -313,7 +282,6 @@ func TestMemCashed_ReloadAllGauges(t *testing.T) {
 		Counter map[string]int64
 	}
 	type args struct {
-		ctx      context.Context
 		newValue map[string]float64
 	}
 	tests := []struct {
@@ -333,7 +301,7 @@ func TestMemCashed_ReloadAllGauges(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			if err := m.ReloadAllGauges(tt.args.ctx, tt.args.newValue); (err != nil) != tt.wantErr {
+			if err := m.ReloadAllGauges(context.Background(), tt.args.newValue); (err != nil) != tt.wantErr {
 				t.Errorf("ReloadAllGauges() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -352,7 +320,6 @@ func TestMemCashed_ReloadAllMetrics(t *testing.T) {
 		Counter map[string]int64
 	}
 	type args struct {
-		ctx     context.Context
 		metrics []models.StorageMetrics
 	}
 	tests := []struct {
@@ -365,7 +332,6 @@ func TestMemCashed_ReloadAllMetrics(t *testing.T) {
 		{
 			name: "Загрузка 2 метрик",
 			args: args{
-				ctx:     context.Background(),
 				metrics: metricsWithoutErrors,
 			},
 			want:    2,
@@ -374,7 +340,6 @@ func TestMemCashed_ReloadAllMetrics(t *testing.T) {
 		{
 			name: "Загрузка метрики с ошибкой",
 			args: args{
-				ctx:     context.Background(),
 				metrics: []models.StorageMetrics{{MType: "error_type"}},
 			},
 			want:    0,
@@ -387,7 +352,7 @@ func TestMemCashed_ReloadAllMetrics(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			got, err := m.ReloadAllMetrics(tt.args.ctx, tt.args.metrics)
+			got, err := m.ReloadAllMetrics(context.Background(), tt.args.metrics)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReloadAllMetrics() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -409,7 +374,6 @@ func TestMemCashed_UpdateCounter(t *testing.T) {
 		Counter map[string]int64
 	}
 	type args struct {
-		ctx         context.Context
 		metricsName string
 		delta       int64
 	}
@@ -423,14 +387,14 @@ func TestMemCashed_UpdateCounter(t *testing.T) {
 		{
 			name:      "Counter не существует",
 			fields:    fields{Counter: make(map[string]int64)},
-			args:      args{ctx: context.Background(), metricsName: "name", delta: 2},
+			args:      args{metricsName: "name", delta: 2},
 			wantValue: 2,
 			wantErr:   false,
 		},
 		{
 			name:      "Counter существует",
 			fields:    fields{Counter: counterWithValue},
-			args:      args{ctx: context.Background(), metricsName: "name", delta: 2},
+			args:      args{metricsName: "name", delta: 2},
 			wantValue: 3,
 			wantErr:   false,
 		},
@@ -441,7 +405,7 @@ func TestMemCashed_UpdateCounter(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			err := m.UpdateCounter(tt.args.ctx, tt.args.metricsName, tt.args.delta)
+			err := m.UpdateCounter(context.Background(), tt.args.metricsName, tt.args.delta)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateCounter() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -458,7 +422,6 @@ func TestMemCashed_UpdateGauge(t *testing.T) {
 		Counter map[string]int64
 	}
 	type args struct {
-		ctx         context.Context
 		metricsName string
 		newValue    float64
 	}
@@ -472,7 +435,7 @@ func TestMemCashed_UpdateGauge(t *testing.T) {
 		{
 			name:      "Обновление Gauge",
 			fields:    fields{Gauge: make(map[string]float64)},
-			args:      args{ctx: context.Background(), metricsName: "name", newValue: 1},
+			args:      args{metricsName: "name", newValue: 1},
 			wantValue: 1,
 			wantErr:   false,
 		},
@@ -483,7 +446,7 @@ func TestMemCashed_UpdateGauge(t *testing.T) {
 				Gauge:   tt.fields.Gauge,
 				Counter: tt.fields.Counter,
 			}
-			err := m.UpdateGauge(tt.args.ctx, tt.args.metricsName, tt.args.newValue)
+			err := m.UpdateGauge(context.Background(), tt.args.metricsName, tt.args.newValue)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateGauge() error = %v, wantErr %v", err, tt.wantErr)
 			}
