@@ -2,6 +2,7 @@
 package reporter
 
 import (
+	"context"
 	"crypto/rsa"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/common/hash"
@@ -16,39 +17,46 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
 )
 
-func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}, rsaPublicKey *rsa.PublicKey) {
+func ReportMetrics(ctx context.Context, h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}, rsaPublicKey *rsa.PublicKey) {
 
 	ticker := time.NewTicker(time.Duration(config.Config.ReportInterval) * time.Second)
 	for range ticker.C {
 
-		metrics, err := h.Storage.GetMetrics()
-		if err != nil {
-			logger.Log.Infoln("failed to report metrics", err.Error())
-			errorsChan <- err
+		select {
+		case <-doneCh:
 			return
+		case <-ctx.Done():
+			return
+		default:
+
+			metrics, err := h.Storage.GetMetrics()
+			if err != nil {
+				logger.Log.Infoln("failed to report metrics", err.Error())
+				errorsChan <- err
+				return
+			}
+
+			jobs := generator(doneCh, metrics)
+
+			sender := httpresty.New(
+				fmt.Sprintf("%s/update/", h.ServerAddress),
+				hash.СomputeHexadecimalSha256Hash,
+				rsaPublicKey,
+			)
+
+			sendMetrics := sendmetrics.New(
+				jobs,
+				doneCh,
+				sender,
+				retrier.ReportMetricRetry1{},
+			)
+
+			for w := 1; w <= config.Config.RateLimit; w++ {
+				go sendMetrics.WorkerSender()
+			}
+
+			sendMetrics.ResultHandling()
 		}
-
-		jobs := generator(doneCh, metrics)
-
-		sender := httpresty.New(
-			fmt.Sprintf("%s/update/", h.ServerAddress),
-			hash.СomputeHexadecimalSha256Hash,
-			rsaPublicKey,
-		)
-
-		sendMetrics := sendmetrics.New(
-			jobs,
-			doneCh,
-			sender,
-			retrier.ReportMetricRetry1{},
-		)
-
-		for w := 1; w <= config.Config.RateLimit; w++ {
-			go sendMetrics.WorkerSender()
-		}
-
-		sendMetrics.ResultHandling()
-
 	}
 }
 

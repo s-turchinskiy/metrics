@@ -2,20 +2,17 @@ package main
 
 import (
 	"context"
-	"errors"
-	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
+	closerutil "github.com/s-turchinskiy/metrics/internal/common/closer"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
 	"log"
-	"net/http"
 	_ "net/http/pprof"
-	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
-	"go.uber.org/zap"
-
 	"github.com/s-turchinskiy/metrics/internal/server/handlers"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
@@ -31,7 +28,9 @@ func init() {
 
 func main() {
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+	closer := closerutil.New(20 * time.Second)
 
 	err := godotenv.Load("./cmd/server/.env")
 	if err != nil {
@@ -51,6 +50,7 @@ func main() {
 			logger.Log.Debugw("Connect to database error", "error", err.Error())
 			log.Fatal(err)
 		}
+		closer.Add(rep.Close)
 
 	} else {
 
@@ -61,23 +61,33 @@ func main() {
 
 	}
 
-	metricsHandler := handlers.NewHandler(ctx, rep)
+	errorsCh := make(chan error)
+	go closer.ProcessingErrorsChannel(errorsCh)
 
-	errors := make(chan error)
+	metricsHandler := handlers.NewHandler(ctx, rep)
+	httpServer := handlers.NewHTTPServer(
+		metricsHandler,
+		settings.Settings.Address.String(),
+		10*time.Second,
+		10*time.Second,
+	)
+	closer.Add(handlers.FuncHTTPServerShutdown(httpServer))
 
 	go func() {
-		err = run(metricsHandler, settings.Settings.EnableHTTPS)
+		err = handlers.RunHTTPServer(httpServer, settings.Settings.EnableHTTPS)
 		if err != nil {
 
 			logger.Log.Errorw("Server startup error", "error", err.Error())
-			errors <- err
+			errorsCh <- err
 			return
 		}
 	}()
 
-	go saveMetricsToFilePeriodically(ctx, metricsHandler, errors)
+	go saveMetricsToFilePeriodically(ctx, metricsHandler, errorsCh)
 
-	err = <-errors
+	<-ctx.Done()
+	err = closer.Shutdown()
+
 	metricsHandler.Service.SaveMetricsToFile(ctx)
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	log.Fatal(err)
@@ -98,29 +108,5 @@ func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandl
 			errors <- err
 			return
 		}
-	}
-}
-
-func run(h *handlers.MetricsHandler, enableHTTPS bool) error {
-
-	router := handlers.Router(h)
-
-	logger.Log.Info("Running server", zap.String("address", settings.Settings.Address.String()))
-
-	if enableHTTPS {
-
-		pathCert := "./cmd/server/certificate/cert.pem"
-		pathRSAPrivateKey := "./cmd/server/certificate/rsa_private_key.pem"
-		if _, err := os.Stat(pathCert); err != nil && errors.Is(err, os.ErrNotExist) {
-			err = rsautil.GenerateCertificateHTTPS(pathCert, pathRSAPrivateKey)
-			if err != nil {
-				return err
-			}
-		}
-
-		return http.ListenAndServeTLS(settings.Settings.Address.String(), pathCert, pathRSAPrivateKey, router)
-
-	} else {
-		return http.ListenAndServe(settings.Settings.Address.String(), router)
 	}
 }

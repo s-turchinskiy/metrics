@@ -2,6 +2,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -33,13 +34,15 @@ type MetricsHandler struct {
 }
 
 // UpdateMetrics Обновление метрик в хранилище
-func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
+func UpdateMetrics(ctx context.Context, h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 
 	ticker := time.NewTicker(time.Duration(config.Config.PollInterval) * time.Second)
 	for range ticker.C {
 
 		select {
 		case <-doneCh:
+			return
+		case <-ctx.Done():
 			return
 		default:
 			metrics, err := GetMetrics(1 * time.Second)

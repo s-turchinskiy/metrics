@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	closerutil "github.com/s-turchinskiy/metrics/internal/common/closer"
 	"log"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 
@@ -38,6 +43,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+	closer := closerutil.New(20 * time.Second)
+
 	metricsHandler := &services.MetricsHandler{
 		Storage: &repositories.MetricsStorage{
 			Gauge:   make(map[string]float64),
@@ -46,16 +55,19 @@ func main() {
 		ServerAddress: "http://" + config.Config.Addr.String(),
 	}
 
-	errorsChan := make(chan error)
+	errorsCh := make(chan error)
+	go closer.ProcessingErrorsChannel(errorsCh)
 
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	go services.UpdateMetrics(metricsHandler, errorsChan, doneCh)
-	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh, config.Config.RSAPublicKey)
+	go services.UpdateMetrics(ctx, metricsHandler, errorsCh, doneCh)
+	go reporter.ReportMetrics(ctx, metricsHandler, errorsCh, doneCh, config.Config.RSAPublicKey)
 	//go reporter.ReportMetricsBatch(metricsHandler, errors)
 
-	err = <-errorsChan
+	<-ctx.Done()
+	err = closer.Shutdown()
+
 	log.Fatal(err)
 
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
+	"go.uber.org/zap"
 	"log"
 	"strings"
 	"time"
@@ -176,4 +177,19 @@ func (p *PostgreSQL) loggingData(ctx context.Context, title, query string, args 
 	logger.Log.Debugw(title, "values", strings.Join(data, ","))
 
 	return nil
+}
+
+func (p *PostgreSQL) Close(ctx context.Context) error {
+
+	p.pool.Close()
+
+	err := p.db.Close()
+
+	if err != nil {
+		logger.Log.Infow("PostgreSQL stopped with error", zap.String("error", err.Error()))
+	} else {
+		logger.Log.Infow("PostgreSQL stopped")
+	}
+	return err
+
 }
