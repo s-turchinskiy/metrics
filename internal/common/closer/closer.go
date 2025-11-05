@@ -1,4 +1,4 @@
-// Package closer Для graceful shutdown
+// Package closerutil Для graceful shutdown
 package closerutil
 
 import (

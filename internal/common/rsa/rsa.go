@@ -1,3 +1,4 @@
+// Package rsautil Функция для RSA
 package rsautil
 
 import (
@@ -30,7 +31,7 @@ func ReadPublicKey(publicKeyPath string) (*rsa.PublicKey, error) {
 	}
 
 	if pubPem.Type != "RSA PUBLIC KEY" && pubPem.Type != "PUBLIC KEY" {
-		err := fmt.Errorf("RSA public key is of the wrong type, Pem Type :%s", pubPem.Type)
+		err = fmt.Errorf("RSA public key is of the wrong type, Pem Type :%s", pubPem.Type)
 		return nil, error2.WrapError(err)
 	}
 

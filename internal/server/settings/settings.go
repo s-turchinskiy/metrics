@@ -173,7 +173,7 @@ func GetSettings() error {
 	}
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
-		err := Settings.Address.Set(envAddr)
+		err = Settings.Address.Set(envAddr)
 		if err != nil {
 			return err
 		}

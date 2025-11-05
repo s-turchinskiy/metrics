@@ -1,3 +1,4 @@
+// Package configutils Функции для чтения в конфиг
 package configutils
 
 import (

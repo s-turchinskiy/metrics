@@ -1,3 +1,4 @@
+// Package timeutils Функции для взаимодействия с датой-временем
 package timeutils
 
 import (

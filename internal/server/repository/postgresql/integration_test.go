@@ -95,20 +95,20 @@ func runMain(m *testing.M) (int, error) {
 	}
 
 	defer func() {
-		if err := pool.Purge(pg); err != nil {
+		if err = pool.Purge(pg); err != nil {
 			log.Printf("failed to purge the postgres container: %v", err)
 		}
 	}()
 
 	hostPort := pg.GetHostPort("5432/tcp")
 	initGetDSN(hostPort)
-	if err := initGetSUConnection(hostPort); err != nil {
+	if err = initGetSUConnection(hostPort); err != nil {
 		return 1, err
 	}
 
 	pool.MaxWait = 10 * time.Second
 	var conn *pgx.Conn
-	if err := pool.Retry(func() error {
+	if err = pool.Retry(func() error {
 		conn, err = getSUConnection()
 		if err != nil {
 			return fmt.Errorf("failed to connect to the DB: %w", err)

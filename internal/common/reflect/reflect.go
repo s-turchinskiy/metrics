@@ -1,3 +1,4 @@
+// Package reflectutil Функции рефлексии
 package reflectutil
 
 import (

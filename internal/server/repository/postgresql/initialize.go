@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	_ "embed"
 	"errors"
 	"fmt"
 	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
@@ -61,6 +60,9 @@ func Initialize(ctx context.Context, dbAddr, dbName string) (repository.Reposito
 		return nil, err
 	}
 	err = p.LoggingStateDatabase(ctx)
+	if err != nil {
+		return nil, error2.WrapError(err)
+	}
 
 	return p, nil
 

@@ -1,3 +1,4 @@
+// Package rsamiddleware Расшифровка тела запроса приватным ключом RSA в middleware
 package rsamiddleware
 
 import (
@@ -16,7 +17,7 @@ func RSADecrypt(privateKey *rsa.PrivateKey) func(next http.Handler) http.Handler
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 
-			if !(r.RequestURI == "/update" && r.Method == http.MethodPost) {
+			if r.RequestURI != "/update" || r.Method != http.MethodPost {
 				next.ServeHTTP(w, r)
 				return
 			}

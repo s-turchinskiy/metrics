@@ -100,7 +100,7 @@ func (p *PostgreSQL) CountCounters(ctx context.Context) int {
 
 func (p *PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value float64, isExist bool, err error) {
 
-	row := p.db.QueryRowContext(ctx, fmt.Sprintf("SELECT value FROM postgres.gauges WHERE metrics_name = $1"), metricsName)
+	row := p.db.QueryRowContext(ctx, "SELECT value FROM postgres.gauges WHERE metrics_name = $1", metricsName)
 	err = row.Scan(&value)
 
 	isExist = true
