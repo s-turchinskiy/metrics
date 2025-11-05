@@ -256,20 +256,19 @@ func (d *database) Set(s string) error {
 	s = strings.Replace(s, "://", " ", 1)
 	s = strings.Replace(s, ":", " ", 1)
 	s = strings.Replace(s, "@", " ", 1)
-	s = strings.Replace(s, ":", " ", 1)
 	s = strings.Replace(s, "/", " ", 1)
 	s = strings.Replace(s, "?", " ", 1)
 
 	hp := strings.Split(s, " ")
-	if len(hp) < 6 {
+	if len(hp) != 6 {
 		//return errors.New("need address in a form host=%s user=%s password=%s dbname=%s sslmode=disable")
 		return errors.New("incorrect format database-dsn")
 	}
 
-	d.Host = hp[3]
 	d.Login = hp[1]
 	d.Password = hp[2]
-	d.DBName = hp[5]
+	d.Host = strings.Split(hp[3], ":")[0]
+	d.DBName = hp[4]
 
 	return nil
 }

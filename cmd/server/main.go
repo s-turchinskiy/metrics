@@ -45,7 +45,7 @@ func main() {
 	var rep repository.Repository
 	if settings.Settings.Store == settings.Database {
 
-		rep, err = postgresql.Initialize(ctx)
+		rep, err = postgresql.Initialize(ctx, settings.Settings.Database.String(), settings.Settings.Database.DBName)
 		if err != nil {
 			logger.Log.Debugw("Connect to database error", "error", err.Error())
 			log.Fatal(err)

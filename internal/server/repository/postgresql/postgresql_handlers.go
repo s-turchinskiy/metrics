@@ -100,7 +100,7 @@ func (p *PostgreSQL) CountCounters(ctx context.Context) int {
 
 func (p *PostgreSQL) GetGauge(ctx context.Context, metricsName string) (value float64, isExist bool, err error) {
 
-	row := p.db.QueryRowContext(ctx, fmt.Sprintf("SELECT value FROM %s.gauges WHERE metrics_name = $1", p.tableSchema), metricsName)
+	row := p.db.QueryRowContext(ctx, fmt.Sprintf("SELECT value FROM postgres.gauges WHERE metrics_name = $1"), metricsName)
 	err = row.Scan(&value)
 
 	isExist = true
@@ -217,6 +217,11 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 	defer tx.Rollback()
 
+	_, err = tx.ExecContext(ctx, "TRUNCATE postgres.gauges")
+	if err != nil {
+		return error2.WrapError(err)
+	}
+
 	portionData := make(map[string]float64, 10)
 
 	for metricsName, newValue := range data {
@@ -269,6 +274,11 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 	}
 
 	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, "TRUNCATE postgres.counters")
+	if err != nil {
+		return error2.WrapError(err)
+	}
 
 	portionData := make(map[string]int64, 10)
 
@@ -324,6 +334,8 @@ func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.Stor
 	batch := new(pgx.Batch)
 
 	batch.Queue("TRUNCATE postgres.counters")
+	batch.Queue("TRUNCATE postgres.gauges")
+
 	for _, metric := range metrics {
 
 		switch metric.MType {
@@ -334,10 +346,6 @@ func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.Stor
 		default:
 			return 0, fmt.Errorf("unclown MType %s", metric.MType)
 		}
-	}
-
-	if batch.Len() == 0 {
-		return 0, nil
 	}
 
 	tx, err := conn.Begin(ctx)
