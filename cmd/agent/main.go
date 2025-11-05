@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	closerutil "github.com/s-turchinskiy/metrics/internal/common/closerutil"
+	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
 	"log"
 	"os/signal"
 	"syscall"
@@ -59,13 +61,19 @@ func main() {
 	go closer.ProcessingErrorsChannel(errorsCh)
 
 	go services.UpdateMetrics(ctx, metricsHandler, cfg.PollInterval, errorsCh)
+
+	sender := httpresty.New(
+		fmt.Sprintf("%s/update/", metricsHandler.ServerAddress),
+		hashutil.СomputeHexadecimalSha256Hash,
+		cfg.HashKey,
+		cfg.RSAPublicKey,
+	)
 	go reporter.ReportMetrics(
 		ctx,
 		metricsHandler,
+		sender,
 		cfg.ReportInterval,
 		cfg.RateLimit,
-		cfg.HashKey,
-		cfg.RSAPublicKey,
 		errorsCh)
 
 	//go reporter.ReportMetricsBatch(metricsHandler, cfg.ReportInterval, errors)

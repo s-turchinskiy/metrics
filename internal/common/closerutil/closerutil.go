@@ -75,8 +75,8 @@ func (c *Closer) Shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	log, err := c.close(shutdownCtx)
-	for _, s := range log {
+	shutdownLog, err := c.close(shutdownCtx)
+	for _, s := range shutdownLog {
 		logger.Log.Debugw(s)
 	}
 
@@ -89,6 +89,7 @@ func (c *Closer) Shutdown() error {
 }
 
 func (c *Closer) ProcessingErrorsChannel(errorsCh chan error) {
+
 	err := <-errorsCh
 
 	if err == nil {
@@ -99,8 +100,5 @@ func (c *Closer) ProcessingErrorsChannel(errorsCh chan error) {
 	errShutdown := c.Shutdown()
 	if errShutdown != nil {
 		logger.Log.Fatalw("fatal error", "error", err.Error(), "error shutdown", errShutdown.Error())
-	} else {
-
-		logger.Log.Fatalw("fatal error", "error", err.Error())
 	}
 }

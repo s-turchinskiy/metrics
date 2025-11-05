@@ -3,25 +3,21 @@ package reporter
 
 import (
 	"context"
-	"crypto/rsa"
-	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
+	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 	"time"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/retrier"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
 )
 
 func ReportMetrics(ctx context.Context,
 	h *services.MetricsHandler,
+	sender sendmetric.MetricSender,
 	reportInterval,
 	rateLimit int,
-	hashKey string,
-	rsaPublicKey *rsa.PublicKey,
 	errorsChan chan error) {
 
 	ticker := time.NewTicker(time.Duration(reportInterval) * time.Second)
@@ -40,13 +36,6 @@ func ReportMetrics(ctx context.Context,
 			}
 
 			jobs := generator(ctx, metrics)
-
-			sender := httpresty.New(
-				fmt.Sprintf("%s/update/", h.ServerAddress),
-				hashutil.СomputeHexadecimalSha256Hash,
-				hashKey,
-				rsaPublicKey,
-			)
 
 			sendMetrics := sendmetrics.New(
 				jobs,
