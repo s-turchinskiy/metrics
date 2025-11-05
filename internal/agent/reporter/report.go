@@ -5,10 +5,9 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/hash"
+	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
 	"time"
 
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/retrier"
@@ -17,14 +16,18 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
 )
 
-func ReportMetrics(ctx context.Context, h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}, rsaPublicKey *rsa.PublicKey) {
+func ReportMetrics(ctx context.Context,
+	h *services.MetricsHandler,
+	reportInterval,
+	rateLimit int,
+	hashKey string,
+	rsaPublicKey *rsa.PublicKey,
+	errorsChan chan error) {
 
-	ticker := time.NewTicker(time.Duration(config.Config.ReportInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(reportInterval) * time.Second)
 	for range ticker.C {
 
 		select {
-		case <-doneCh:
-			return
 		case <-ctx.Done():
 			return
 		default:
@@ -36,31 +39,31 @@ func ReportMetrics(ctx context.Context, h *services.MetricsHandler, errorsChan c
 				return
 			}
 
-			jobs := generator(doneCh, metrics)
+			jobs := generator(ctx, metrics)
 
 			sender := httpresty.New(
 				fmt.Sprintf("%s/update/", h.ServerAddress),
-				hash.СomputeHexadecimalSha256Hash,
+				hashutil.СomputeHexadecimalSha256Hash,
+				hashKey,
 				rsaPublicKey,
 			)
 
 			sendMetrics := sendmetrics.New(
 				jobs,
-				doneCh,
 				sender,
 				retrier.ReportMetricRetry1{},
 			)
 
-			for w := 1; w <= config.Config.RateLimit; w++ {
-				go sendMetrics.WorkerSender()
+			for w := 1; w <= rateLimit; w++ {
+				go sendMetrics.WorkerSender(ctx)
 			}
 
-			sendMetrics.ResultHandling()
+			sendMetrics.ResultHandling(ctx)
 		}
 	}
 }
 
-func generator(doneCh chan struct{}, input []models.Metrics) chan models.Metrics {
+func generator(ctx context.Context, input []models.Metrics) chan models.Metrics {
 	inputCh := make(chan models.Metrics, len(input))
 
 	go func() {
@@ -68,7 +71,7 @@ func generator(doneCh chan struct{}, input []models.Metrics) chan models.Metrics
 
 		for _, data := range input {
 			select {
-			case <-doneCh:
+			case <-ctx.Done():
 				return
 			case inputCh <- data:
 			}

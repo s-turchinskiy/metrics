@@ -5,13 +5,11 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
-	"github.com/s-turchinskiy/metrics/internal/common/hash"
-	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
-
 	"github.com/go-resty/resty/v2"
+	"github.com/s-turchinskiy/metrics/internal/common/errutil"
+	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
+	"github.com/s-turchinskiy/metrics/internal/common/rsautil"
 
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 )
@@ -19,16 +17,18 @@ import (
 type ReportMetricsHTTPResty struct {
 	client       *resty.Client
 	url          string
-	hashFunc     hash.HashFunc
+	hashFunc     hashutil.HashFunc
+	hashKey      string
 	rsaPublicKey *rsa.PublicKey
 }
 
-func New(url string, hashFunc hash.HashFunc, rsaPublicKey *rsa.PublicKey) *ReportMetricsHTTPResty {
+func New(url string, hashFunc hashutil.HashFunc, hashKey string, rsaPublicKey *rsa.PublicKey) *ReportMetricsHTTPResty {
 
 	return &ReportMetricsHTTPResty{
 		client:       resty.New(),
 		url:          url,
 		hashFunc:     hashFunc,
+		hashKey:      hashKey,
 		rsaPublicKey: rsaPublicKey,
 	}
 }
@@ -36,6 +36,10 @@ func New(url string, hashFunc hash.HashFunc, rsaPublicKey *rsa.PublicKey) *Repor
 func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 
 	body, err := json.Marshal(metric)
+	if err != nil {
+		return errutil.WrapError(fmt.Errorf("error json marshal data"))
+	}
+
 	if r.rsaPublicKey != nil {
 		body, err = rsautil.Encrypt(r.rsaPublicKey, body)
 		if err != nil {
@@ -43,17 +47,13 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 		}
 	}
 
-	if err != nil {
-		return error2.WrapError(fmt.Errorf("error json marshal data"))
-	}
-
 	request := r.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(body)
 
-	if config.Config.HashKey != "" && r.hashFunc != nil {
+	if r.hashKey != "" && r.hashFunc != nil {
 
-		hash := r.hashFunc(config.Config.HashKey, body)
+		hash := r.hashFunc(r.hashKey, body)
 		request.SetHeader("HashSHA256", hash)
 	}
 

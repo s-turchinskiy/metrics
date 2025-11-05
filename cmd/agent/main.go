@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	closerutil "github.com/s-turchinskiy/metrics/internal/common/closer"
+	closerutil "github.com/s-turchinskiy/metrics/internal/common/closerutil"
 	"log"
 	"os/signal"
 	"syscall"
@@ -38,7 +38,7 @@ func main() {
 		logger.Log.Debugw("Error loading .env file", "error", err.Error())
 	}
 
-	err = config.ParseFlags()
+	cfg, err := config.ParseFlags()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,18 +52,23 @@ func main() {
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
 		},
-		ServerAddress: "http://" + config.Config.Addr.String(),
+		ServerAddress: "http://" + cfg.Addr.String(),
 	}
 
 	errorsCh := make(chan error)
 	go closer.ProcessingErrorsChannel(errorsCh)
 
-	doneCh := make(chan struct{})
-	defer close(doneCh)
+	go services.UpdateMetrics(ctx, metricsHandler, cfg.PollInterval, errorsCh)
+	go reporter.ReportMetrics(
+		ctx,
+		metricsHandler,
+		cfg.ReportInterval,
+		cfg.RateLimit,
+		cfg.HashKey,
+		cfg.RSAPublicKey,
+		errorsCh)
 
-	go services.UpdateMetrics(ctx, metricsHandler, errorsCh, doneCh)
-	go reporter.ReportMetrics(ctx, metricsHandler, errorsCh, doneCh, config.Config.RSAPublicKey)
-	//go reporter.ReportMetricsBatch(metricsHandler, errors)
+	//go reporter.ReportMetricsBatch(metricsHandler, cfg.ReportInterval, errors)
 
 	<-ctx.Done()
 	err = closer.Shutdown()

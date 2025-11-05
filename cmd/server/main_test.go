@@ -414,7 +414,7 @@ func TestInspectDatabase(t *testing.T) {
 	})
 
 	suite.Run("delay", func() {
-		time.Sleep(5 * time.Second)
+		timeutil.Sleep(5 * timeutil.Second)
 	})
 
 	suite.Run("inspect", func() {

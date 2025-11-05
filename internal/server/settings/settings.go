@@ -6,7 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	configutils "github.com/s-turchinskiy/metrics/internal/common/config"
+	configutils "github.com/s-turchinskiy/metrics/internal/common/configutil"
 	"os"
 	"reflect"
 	"strconv"
@@ -16,8 +16,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/s-turchinskiy/metrics/internal/common/file"
-	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
+	"github.com/s-turchinskiy/metrics/internal/common/fileutil"
+	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsautil"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 )
 
@@ -134,17 +134,17 @@ func GetSettings() error {
 	configFilePath := configutils.GetConfigFilePath()
 	if configFilePath != "" {
 		if err := loadConfigFromJSON(&Settings, configFilePath); err != nil {
-			return fmt.Errorf("failed to load config from JSON: %w", err)
+			return fmt.Errorf("failed to load configutil from JSON: %w", err)
 		}
 	}
 
-	err := file.ReadSaveYaml(&Settings, filenameSettings)
+	err := fileutil.ReadSaveYaml(&Settings, filenameSettings)
 	if err != nil {
 		return err
 	}
 
 	secretSettings := SecretSettings{}
-	err = file.ReadSaveYaml(&secretSettings, filenameSecretSettings)
+	err = fileutil.ReadSaveYaml(&secretSettings, filenameSecretSettings)
 
 	if err != nil {
 		return err

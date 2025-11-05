@@ -5,8 +5,8 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"fmt"
-	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
-	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
+	"github.com/s-turchinskiy/metrics/internal/common/errutil"
+	"github.com/s-turchinskiy/metrics/internal/common/rsautil"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"io"
 	"net/http"
@@ -35,7 +35,7 @@ func RSADecrypt(privateKey *rsa.PrivateKey) func(next http.Handler) http.Handler
 
 			bodyBytes, err := io.ReadAll(r.Body)
 			if err != nil {
-				logger.Log.Debugw(error2.WrapError(fmt.Errorf("error read body")).Error())
+				logger.Log.Debugw(errutil.WrapError(fmt.Errorf("error read body")).Error())
 				next.ServeHTTP(w, r)
 				return
 			}

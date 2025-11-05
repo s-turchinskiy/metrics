@@ -7,7 +7,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
+	"github.com/s-turchinskiy/metrics/internal/common/errutil"
 	"go.uber.org/zap"
 	"strings"
 	"time"
@@ -33,10 +33,10 @@ func Initialize(ctx context.Context, dbAddr, dbName string) (repository.Reposito
 
 	db, err := sqlx.Open("pgx", dbAddr)
 	if err != nil {
-		return nil, error2.WrapError(err)
+		return nil, errutil.WrapError(err)
 	}
 	if err = db.PingContext(ctx); err != nil {
-		return nil, error2.WrapError(err)
+		return nil, errutil.WrapError(err)
 	}
 
 	db.SetConnMaxLifetime(time.Hour)
@@ -46,14 +46,14 @@ func Initialize(ctx context.Context, dbAddr, dbName string) (repository.Reposito
 
 	pool, err := pgxpool.New(ctx, dbAddr)
 	if err != nil {
-		return nil, error2.WrapError(err)
+		return nil, errutil.WrapError(err)
 	}
 
 	p := &PostgreSQL{db: db, pool: pool}
 
 	_, err = p.db.ExecContext(ctx, fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, "postgres"))
 	if err != nil {
-		return nil, error2.WrapError(err)
+		return nil, errutil.WrapError(err)
 	}
 
 	if err = runMigrations(db.DB, dbName); err != nil {
@@ -61,7 +61,7 @@ func Initialize(ctx context.Context, dbAddr, dbName string) (repository.Reposito
 	}
 	err = p.LoggingStateDatabase(ctx)
 	if err != nil {
-		return nil, error2.WrapError(err)
+		return nil, errutil.WrapError(err)
 	}
 
 	return p, nil
@@ -75,15 +75,15 @@ func runMigrations(db *sql.DB, dbname string) error {
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{SchemaName: "postgres"})
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance("file://migrations", dbname, driver)
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	return nil
@@ -103,7 +103,7 @@ func (p *PostgreSQL) LoggingStateDatabase(ctx context.Context) error {
 		"view tables",
 		"SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')")
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 	return nil
 }

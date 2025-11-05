@@ -1,5 +1,5 @@
-// Package timeutils Функции для взаимодействия с датой-временем
-package timeutils
+// Package timeutil Функции для взаимодействия с датой-временем
+package timeutil
 
 import (
 	"fmt"

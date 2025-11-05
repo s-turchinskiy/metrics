@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	closerutil "github.com/s-turchinskiy/metrics/internal/common/closer"
+	closerutil "github.com/s-turchinskiy/metrics/internal/common/closerutil"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
@@ -27,6 +27,9 @@ func init() {
 }
 
 func main() {
+
+	pathCert := "./cmd/server/certificate/cert.pem"
+	pathRSAPrivateKey := "./cmd/server/certificate/rsa_private_key.pem"
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
@@ -74,7 +77,7 @@ func main() {
 	closer.Add(handlers.FuncHTTPServerShutdown(httpServer))
 
 	go func() {
-		err = handlers.RunHTTPServer(httpServer, settings.Settings.EnableHTTPS)
+		err = handlers.RunHTTPServer(httpServer, settings.Settings.EnableHTTPS, pathCert, pathRSAPrivateKey)
 		if err != nil {
 
 			logger.Log.Errorw("Server startup error", "error", err.Error())

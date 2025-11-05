@@ -4,7 +4,7 @@ package closerutil
 import (
 	"context"
 	"fmt"
-	reflectutil "github.com/s-turchinskiy/metrics/internal/common/reflect"
+	"github.com/s-turchinskiy/metrics/internal/common/reflectutil"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"log"
 	"strings"
@@ -12,23 +12,25 @@ import (
 	"time"
 )
 
+type FuncClose func(ctx context.Context) error
+
 type Closer struct {
 	mu      sync.Mutex
-	funcs   []Func
+	funcs   []FuncClose
 	timeout time.Duration
 }
 
 func New(timeout time.Duration) *Closer {
 	return &Closer{timeout: timeout}
 }
-func (c *Closer) Add(f Func) {
+func (c *Closer) Add(f FuncClose) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.funcs = append(c.funcs, f)
 }
 
-func (c *Closer) close(ctx context.Context) error {
+func (c *Closer) close(ctx context.Context) (log []string, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -39,7 +41,7 @@ func (c *Closer) close(ctx context.Context) error {
 
 	go func() {
 		for _, f := range c.funcs {
-			logger.Log.Debugw("stopping " + reflectutil.GetFunctionName(f))
+			log = append(log, "stopping "+reflectutil.GetFunctionName(f))
 			if err := f(ctx); err != nil {
 				msgs = append(msgs, fmt.Sprintf("[!] %v", err))
 			}
@@ -52,17 +54,17 @@ func (c *Closer) close(ctx context.Context) error {
 	case <-complete:
 		break
 	case <-ctx.Done():
-		return fmt.Errorf("shutdown cancelled: %v", ctx.Err())
+		return log, fmt.Errorf("shutdown cancelled: %v", ctx.Err())
 	}
 
 	if len(msgs) > 0 {
-		return fmt.Errorf(
+		return log, fmt.Errorf(
 			"shutdown finished with error(s): \n%s",
 			strings.Join(msgs, "\n"),
 		)
 	}
 
-	return nil
+	return log, nil
 }
 
 func (c *Closer) Shutdown() error {
@@ -73,8 +75,13 @@ func (c *Closer) Shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	if err := c.close(shutdownCtx); err != nil {
-		return fmt.Errorf("closer: %v", err)
+	log, err := c.close(shutdownCtx)
+	for _, s := range log {
+		logger.Log.Debugw(s)
+	}
+
+	if err != nil {
+		return fmt.Errorf("closerutil: %v", err)
 	}
 
 	return nil
@@ -97,5 +104,3 @@ func (c *Closer) ProcessingErrorsChannel(errorsCh chan error) {
 		logger.Log.Fatalw("fatal error", "error", err.Error())
 	}
 }
-
-type Func func(ctx context.Context) error

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
+	"github.com/s-turchinskiy/metrics/internal/common/errutil"
 	"time"
 
 	"github.com/jackc/pgerrcode"
@@ -69,9 +69,9 @@ func (p *PostgreSQL) UpdateCounter(ctx context.Context, metricsName string, newV
 		var pgErr *pgconn.PgError
 		errors.As(err, &pgErr)
 		if pgerrcode.IsSyntaxErrororAccessRuleViolation(pgErr.Code) {
-			return error2.WrapError(fmt.Errorf("%w syntax error in request QueryInsertUpdateCounter", err))
+			return errutil.WrapError(fmt.Errorf("%w syntax error in request QueryInsertUpdateCounter", err))
 		}
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	return nil
@@ -146,7 +146,7 @@ func (p *PostgreSQL) GetCounter(ctx context.Context, metricsName string) (value 
 			isExist = false
 			err = nil
 		} else {
-			return 0, false, error2.WrapError(err)
+			return 0, false, errutil.WrapError(err)
 		}
 	}
 
@@ -168,7 +168,7 @@ func (p *PostgreSQL) GetAllGauges(ctx context.Context) (map[string]float64, erro
 	err := p.db.SelectContext(ctx, &metrics, "SELECT metrics_name, value from postgres.gauges")
 
 	if err != nil {
-		return nil, error2.WrapError(err)
+		return nil, errutil.WrapError(err)
 	}
 	for _, data := range metrics {
 		result[data.MetricsName] = data.Value
@@ -212,14 +212,14 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, "TRUNCATE postgres.gauges")
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	portionData := make(map[string]float64, 10)
@@ -231,7 +231,7 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 			err = insertUpdatePortionGauges(ctx, portionData, tx)
 			if err != nil {
-				return error2.WrapError(err)
+				return errutil.WrapError(err)
 			}
 
 			for k := range portionData {
@@ -242,12 +242,12 @@ func (p *PostgreSQL) ReloadAllGauges(ctx context.Context, data map[string]float6
 
 	err = insertUpdatePortionGauges(ctx, portionData, tx)
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	return nil
@@ -277,7 +277,7 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 
 	_, err = tx.ExecContext(ctx, "TRUNCATE postgres.counters")
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	portionData := make(map[string]int64, 10)
@@ -289,7 +289,7 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 
 			err = insertUpdatePortionCounters(ctx, portionData, tx)
 			if err != nil {
-				return error2.WrapError(err)
+				return errutil.WrapError(err)
 			}
 
 			for k := range portionData {
@@ -300,12 +300,12 @@ func (p *PostgreSQL) ReloadAllCounters(ctx context.Context, data map[string]int6
 
 	err = insertUpdatePortionCounters(ctx, portionData, tx)
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return error2.WrapError(err)
+		return errutil.WrapError(err)
 	}
 
 	return nil
@@ -350,25 +350,25 @@ func (p *PostgreSQL) ReloadAllMetrics(ctx context.Context, metrics []models.Stor
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return 0, error2.WrapError(err)
+		return 0, errutil.WrapError(err)
 	}
 
 	result := tx.SendBatch(ctx, batch)
 
 	tag, err := result.Exec()
 	if err != nil {
-		return 0, error2.WrapError(err)
+		return 0, errutil.WrapError(err)
 	}
 
 	err = result.Close()
 	if err != nil {
 		_ = tx.Rollback(ctx)
-		return 0, error2.WrapError(err)
+		return 0, errutil.WrapError(err)
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		return 0, error2.WrapError(err)
+		return 0, errutil.WrapError(err)
 	}
 
 	return tag.RowsAffected(), nil

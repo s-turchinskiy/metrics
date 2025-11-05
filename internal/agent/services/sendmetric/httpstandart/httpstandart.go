@@ -5,12 +5,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
-	"github.com/s-turchinskiy/metrics/internal/common/hash"
+	"github.com/s-turchinskiy/metrics/internal/common/errutil"
+	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
 	"io"
 	"net/http"
 
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
@@ -18,14 +17,16 @@ import (
 
 type ReportMetricsHTTPStandart struct {
 	url      string
-	hashFunc hash.HashFunc
+	hashFunc hashutil.HashFunc
+	hashKey  string
 }
 
-func New(url string, hashFunc hash.HashFunc) *ReportMetricsHTTPStandart {
+func New(url string, hashFunc hashutil.HashFunc, hashKey string) *ReportMetricsHTTPStandart {
 
 	return &ReportMetricsHTTPStandart{
 		url:      url,
 		hashFunc: hashFunc,
+		hashKey:  hashKey,
 	}
 }
 
@@ -33,16 +34,16 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 
 	data, err := json.Marshal(metric)
 	if err != nil {
-		return error2.WrapError(fmt.Errorf("error json marshal data"))
+		return errutil.WrapError(fmt.Errorf("error json marshal data"))
 	}
 
 	client := new(http.Client)
 	request, _ := http.NewRequest("POST", r.url, bytes.NewReader(data))
 	request.Header.Add("Content-Type", "application/json")
 
-	if config.Config.HashKey != "" && r.hashFunc != nil {
+	if r.hashKey != "" && r.hashFunc != nil {
 
-		hash := r.hashFunc(config.Config.HashKey, data)
+		hash := r.hashFunc(r.hashKey, data)
 		request.Header.Add("HashSHA256", hash)
 	}
 
@@ -55,7 +56,7 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Log.Debugw(error2.WrapError(fmt.Errorf("error read body")).Error())
+		logger.Log.Debugw(errutil.WrapError(fmt.Errorf("error read body")).Error())
 		return err
 	}
 

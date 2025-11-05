@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
+	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsautil"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -24,14 +24,12 @@ func NewHTTPServer(handler *MetricsHandler, addr string, readTimeout, writeTimeo
 
 }
 
-func RunHTTPServer(server *http.Server, enableHTTPS bool) error {
+func RunHTTPServer(server *http.Server, enableHTTPS bool, pathCert, pathRSAPrivateKey string) error {
 
 	var err error
 
 	if enableHTTPS {
 
-		pathCert := "./cmd/server/certificate/cert.pem"
-		pathRSAPrivateKey := "./cmd/server/certificate/rsa_private_key.pem"
 		if _, err = os.Stat(pathCert); err != nil && errors.Is(err, os.ErrNotExist) {
 			err = rsautil.GenerateCertificateHTTPS(pathCert, pathRSAPrivateKey)
 			if err != nil {

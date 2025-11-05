@@ -8,16 +8,15 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 )
 
-func ReportMetricsBatch(h *services.MetricsHandler, errors chan error) {
+func ReportMetricsBatch(h *services.MetricsHandler, reportInterval int, errors chan error) {
 
 	url := fmt.Sprintf("%s/updates/", h.ServerAddress)
 
-	ticker := time.NewTicker(time.Duration(config.Config.ReportInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(reportInterval) * time.Second)
 	for range ticker.C {
 
 		client := resty.New()

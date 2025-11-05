@@ -6,8 +6,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	configutils "github.com/s-turchinskiy/metrics/internal/common/config"
-	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsa"
+	"github.com/s-turchinskiy/metrics/internal/common/configutil"
+	"github.com/s-turchinskiy/metrics/internal/common/rsautil"
 	"os"
 	"runtime"
 	"strconv"
@@ -29,79 +29,79 @@ type ProgramConfig struct {
 	RSAPublicKey     *rsa.PublicKey
 }
 
-var Config ProgramConfig
+func ParseFlags() (*ProgramConfig, error) {
 
-func ParseFlags() error {
+	cfg := ProgramConfig{}
 
-	Config.Addr = &NetAddress{Host: "localhost", Port: 8080}
+	cfg.Addr = &NetAddress{Host: "localhost", Port: 8080}
 
-	configFilePath := configutils.GetConfigFilePath()
+	configFilePath := configutil.GetConfigFilePath()
 	if configFilePath != "" {
-		if err := loadConfigFromJSON(&Config, configFilePath); err != nil {
-			return fmt.Errorf("failed to load config from JSON: %w", err)
+		if err := loadConfigFromJSON(&cfg, configFilePath); err != nil {
+			return nil, fmt.Errorf("failed to load configutil from JSON: %w", err)
 		}
 	}
 
-	flag.Var(Config.Addr, "a", "Net address host:port")
-	flag.IntVar(&Config.PollInterval, "p", 2, "poll interval")
-	flag.IntVar(&Config.ReportInterval, "r", 10, "report interval")
-	flag.StringVar(&Config.HashKey, "k", "", "HashSHA256 key")
-	flag.IntVar(&Config.RateLimit, "l", runtime.NumCPU(), "number of concurrently outgoing requests to server")
-	flag.StringVar(&Config.rsaPublicKeyPath, "crypto-key", "", "Путь до файла с публичным ключом")
+	flag.Var(cfg.Addr, "a", "Net address host:port")
+	flag.IntVar(&cfg.PollInterval, "p", 2, "poll interval")
+	flag.IntVar(&cfg.ReportInterval, "r", 10, "report interval")
+	flag.StringVar(&cfg.HashKey, "k", "", "HashSHA256 key")
+	flag.IntVar(&cfg.RateLimit, "l", runtime.NumCPU(), "number of concurrently outgoing requests to server")
+	flag.StringVar(&cfg.rsaPublicKeyPath, "crypto-key", "", "Путь до файла с публичным ключом")
 	flag.Parse()
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
-		err := Config.Addr.Set(envAddr)
+		err := cfg.Addr.Set(envAddr)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	if envPollInterval := os.Getenv("POLL_INTERVAL"); envPollInterval != "" {
 		value, err := strconv.Atoi(envPollInterval)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		Config.PollInterval = value
+		cfg.PollInterval = value
 	}
 
 	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {
 		value, err := strconv.Atoi(envReportInterval)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		Config.ReportInterval = value
+		cfg.ReportInterval = value
 	}
 
 	if valueStr := os.Getenv("RATE_LIMIT"); valueStr != "" {
 		value, err := strconv.Atoi(valueStr)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		Config.RateLimit = value
+		cfg.RateLimit = value
 	}
 
 	if value := os.Getenv("KEY"); value != "" {
-		Config.HashKey = value
+		cfg.HashKey = value
 	}
 
 	if value := os.Getenv("CRYPTO_KEY"); value != "" {
-		Config.rsaPublicKeyPath = value
+		cfg.rsaPublicKeyPath = value
 	}
 
-	if Config.rsaPublicKeyPath != "" {
+	if cfg.rsaPublicKeyPath != "" {
 		var err error
-		Config.RSAPublicKey, err = rsautil.ReadPublicKey(Config.rsaPublicKeyPath)
+		cfg.RSAPublicKey, err = rsautil.ReadPublicKey(cfg.rsaPublicKeyPath)
 		if err != nil {
-			err = fmt.Errorf("path: %s, error: %w", Config.rsaPublicKeyPath, err)
-			return err
+			err = fmt.Errorf("path: %s, error: %w", cfg.rsaPublicKeyPath, err)
+			return nil, err
 		}
 	}
 
-	return nil
+	return &cfg, nil
 }
 
 func (a *NetAddress) String() string {
