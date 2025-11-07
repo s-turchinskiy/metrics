@@ -79,12 +79,6 @@ func runMigrations(db *sql.DB, dbname string) error {
 		return errutil.WrapError(err)
 	}
 
-	fmt.Println(migrationsDir)
-	entries, err := migrationsDir.ReadDir("migrations")
-	for _, entry := range entries {
-		fmt.Println(entry.Name())
-	}
-
 	var pathToMigrations string
 	_, err = os.Stat("./internal/server/repository/postgresql/migrations")
 	if err == nil {
