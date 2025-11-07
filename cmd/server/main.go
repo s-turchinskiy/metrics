@@ -89,11 +89,11 @@ func main() {
 	}()
 
 	go saveMetricsToFilePeriodically(ctx, metricsHandler, errorsCh)
+	closer.Add(metricsHandler.Service.SaveMetricsToFile)
 
 	<-ctx.Done()
 	err = closer.Shutdown()
 
-	metricsHandler.Service.SaveMetricsToFile(ctx)
 	logger.Log.Infow("error, server stopped", "error", err.Error())
 	log.Fatal(err)
 }
