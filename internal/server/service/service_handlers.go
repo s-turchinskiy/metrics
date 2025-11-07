@@ -21,20 +21,22 @@ import (
 )
 
 type Service struct {
-	Repository    repository.Repository
-	retryStrategy []time.Duration
-	mutex         sync.Mutex
+	Repository      repository.Repository
+	retryStrategy   []time.Duration
+	fileStoragePath string
+	mutex           sync.Mutex
 }
 
 // New Создание нового сервиса
-func New(rep repository.Repository, retryStrategy []time.Duration) *Service {
+func New(rep repository.Repository, retryStrategy []time.Duration, fileStoragePath string) *Service {
 
 	if len(retryStrategy) == 0 {
 		retryStrategy = []time.Duration{0}
 	}
 	return &Service{
-		Repository:    rep,
-		retryStrategy: retryStrategy,
+		Repository:      rep,
+		retryStrategy:   retryStrategy,
+		fileStoragePath: fileStoragePath,
 	}
 }
 
@@ -353,7 +355,7 @@ func (s *Service) SaveMetricsToFile(ctx context.Context) error {
 		return err
 	}
 
-	err = os.WriteFile(settings.Settings.FileStoragePath, data, 0666)
+	err = os.WriteFile(s.fileStoragePath, data, 0666)
 	if err != nil {
 		return err
 	}
@@ -393,7 +395,7 @@ func (s *Service) LoadMetricsFromData(ctx context.Context, data []byte) error {
 // LoadMetricsFromFile Загрузка метрик из файла
 func (s *Service) LoadMetricsFromFile(ctx context.Context) error {
 
-	data, err := os.ReadFile(settings.Settings.FileStoragePath)
+	data, err := os.ReadFile(s.fileStoragePath)
 
 	if errors.Is(err, os.ErrNotExist) {
 		dir, err2 := os.Getwd()

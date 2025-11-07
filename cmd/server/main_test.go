@@ -220,7 +220,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 		Counter: make(map[string]int64),
 	}
 
-	h := &handlers.MetricsHandler{Service: service.New(rep, nil)}
+	h := &handlers.MetricsHandler{Service: service.New(rep, nil, "")}
 
 	handler := gzip.GzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
 
@@ -311,7 +311,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 		Counter: map[string]int64{"someMetric": 2},
 	}
 
-	h := &handlers.MetricsHandler{Service: service.New(rep, nil)}
+	h := &handlers.MetricsHandler{Service: service.New(rep, nil, "")}
 
 	//handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
 	handler := gzip.GzipMiddleware(http.HandlerFunc(h.GetTypedMetric))

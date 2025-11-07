@@ -21,7 +21,7 @@ func ExampleService_UpdateTypedMetrics() {
 		{MType: "counter", Name: "someMetric", Delta: &delta},
 	}
 
-	s := New(rep, nil)
+	s := New(rep, nil, "")
 	res, err := s.UpdateTypedMetrics(context.Background(), metrics)
 	fmt.Println(res, err)
 

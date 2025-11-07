@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsautil"
@@ -11,11 +12,16 @@ import (
 	"time"
 )
 
-func NewHTTPServer(handler *MetricsHandler, addr string, readTimeout, writeTimeout time.Duration) *http.Server {
+func NewHTTPServer(
+	handler *MetricsHandler,
+	addr string, readTimeout,
+	writeTimeout time.Duration,
+	rsaPrivateKey *rsa.PrivateKey,
+	hashKey string) *http.Server {
 
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      Router(handler),
+		Handler:      Router(handler, rsaPrivateKey, hashKey),
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 	}

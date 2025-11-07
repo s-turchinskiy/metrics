@@ -21,6 +21,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/zijiren233/yaml-comment v0.2.2
 	go.uber.org/zap v1.27.0
+	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 	golang.org/x/tools v0.37.0
 	golang.yandex/linters v1.0.0
 	gopkg.in/yaml.v3 v3.0.1

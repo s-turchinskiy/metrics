@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
-	closerutil "github.com/s-turchinskiy/metrics/internal/common/closerutil"
+	"github.com/s-turchinskiy/metrics/internal/common/closerutil"
 	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
 	"log"
 	"os/signal"

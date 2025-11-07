@@ -1,14 +1,16 @@
 package handlers
 
 import (
+	"crypto/rsa"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/s-turchinskiy/metrics/internal/server/handlers/swagger"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/gzip"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/hash"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	rsamiddleware "github.com/s-turchinskiy/metrics/internal/server/middleware/rsa"
-	"github.com/s-turchinskiy/metrics/internal/server/settings"
 	httpswagger "github.com/swaggo/http-swagger"
+	"golang.org/x/exp/slices"
+	"net/http"
 	"net/http/pprof"
 )
 
@@ -34,12 +36,20 @@ import (
 // @Tag.name Ping
 // @Tag.description "Группа проверки работоспособности сервиса"
 
-func Router(h *MetricsHandler) chi.Router {
+type filterType map[string]map[string][]string
+type middlewareType func(next http.Handler) http.Handler
+
+func Router(h *MetricsHandler, rsaPrivateKey *rsa.PrivateKey, hashKey string) chi.Router {
+
+	filter := make(map[string]map[string][]string, 1)
+	filterRSA := make(map[string][]string, 1)
+	filterRSA["/update"] = []string{http.MethodPost}
+	filter["RSA"] = filterRSA
 
 	router := chi.NewRouter()
-	router.Use(hash.HashWriteMiddleware)
-	router.Use(hash.HashReadMiddleware)
-	router.Use(rsamiddleware.RSADecrypt(settings.Settings.RSAPrivateKey))
+	router.Use(hash.HashWriteMiddleware(hashKey))
+	router.Use(hash.HashReadMiddleware(hashKey))
+	router.Use(filteringMiddleware(filter, "RSA", rsamiddleware.RSADecrypt(rsaPrivateKey)))
 	router.Use(gzip.GzipMiddleware)
 	router.Use(logger.Logger)
 	router.Route("/update", func(r chi.Router) {
@@ -78,4 +88,38 @@ func Router(h *MetricsHandler) chi.Router {
 
 	return router
 
+}
+
+func filteredMiddleware(filter map[string]map[string][]string, nameMiddleware, RequestURI, Method string) bool {
+
+	filterURI, exist := filter[nameMiddleware]
+	if !exist {
+		return false
+	}
+
+	methods, exist := filterURI[RequestURI]
+	if !exist {
+		return false
+	}
+
+	if !slices.Contains(methods, Method) {
+		return false
+	}
+
+	return true
+}
+
+func filteringMiddleware(filter filterType, nameMiddleware string,
+	middleware middlewareType) middlewareType {
+
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+
+			if filteredMiddleware(filter, nameMiddleware, r.RequestURI, r.Method) {
+				middleware(next)
+			}
+		}
+
+		return http.HandlerFunc(fn)
+	}
 }

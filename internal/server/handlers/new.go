@@ -13,7 +13,8 @@ import (
 )
 
 type MetricsHandler struct {
-	Service service.MetricsUpdater
+	Service                       service.MetricsUpdater
+	asynchronousWritingDataToFile bool
 }
 
 const (
@@ -29,8 +30,12 @@ var (
 	templateOutputAllMetrics = `<div>{{.Header}}</div><table style="margin-left: 40px">{{range $k, $v:= .Table}}<tr><td>{{$k}}</td><td>{{$v}}</td></tr>{{end}}</table>`
 )
 
-func NewHandler(ctx context.Context, rep repository.Repository) *MetricsHandler {
-	metricsHandler := &MetricsHandler{}
+func NewHandler(
+	ctx context.Context,
+	rep repository.Repository,
+	fileStoragePath string,
+	asynchronousWritingDataToFile bool) *MetricsHandler {
+	metricsHandler := &MetricsHandler{asynchronousWritingDataToFile: asynchronousWritingDataToFile}
 	if settings.Settings.Store == settings.Database {
 
 		retryStrategy := []time.Duration{
@@ -38,11 +43,11 @@ func NewHandler(ctx context.Context, rep repository.Repository) *MetricsHandler 
 			2 * time.Second,
 			5 * time.Second}
 
-		metricsHandler.Service = service.New(rep, retryStrategy)
+		metricsHandler.Service = service.New(rep, retryStrategy, fileStoragePath)
 
 	} else {
 
-		metricsHandler.Service = service.New(rep, []time.Duration{0})
+		metricsHandler.Service = service.New(rep, []time.Duration{0}, fileStoragePath)
 
 		if settings.Settings.Restore {
 			err := metricsHandler.Service.LoadMetricsFromFile(ctx)

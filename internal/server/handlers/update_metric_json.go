@@ -11,7 +11,6 @@ import (
 
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
-	"github.com/s-turchinskiy/metrics/internal/server/settings"
 )
 
 // UpdateMetricJSON godoc
@@ -65,7 +64,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if !settings.Settings.AsynchronousWritingDataToFile {
+	if !h.asynchronousWritingDataToFile {
 		err := h.Service.SaveMetricsToFile(r.Context())
 		if err != nil {
 			logger.Log.Info("error SaveMetricsToFile", zap.Error(err))

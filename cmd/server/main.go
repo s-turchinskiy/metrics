@@ -67,12 +67,14 @@ func main() {
 	errorsCh := make(chan error)
 	go closer.ProcessingErrorsChannel(errorsCh)
 
-	metricsHandler := handlers.NewHandler(ctx, rep)
+	metricsHandler := handlers.NewHandler(ctx, rep, settings.Settings.FileStoragePath, settings.Settings.AsynchronousWritingDataToFile)
 	httpServer := handlers.NewHTTPServer(
 		metricsHandler,
 		settings.Settings.Address.String(),
 		10*time.Second,
 		10*time.Second,
+		settings.Settings.RSAPrivateKey,
+		settings.Settings.HashKey,
 	)
 	closer.Add(handlers.FuncHTTPServerShutdown(httpServer))
 

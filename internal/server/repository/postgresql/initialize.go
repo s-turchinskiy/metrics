@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/common/errutil"
 	"go.uber.org/zap"
+	"os"
 	"strings"
 	"time"
 
@@ -78,7 +79,21 @@ func runMigrations(db *sql.DB, dbname string) error {
 		return errutil.WrapError(err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance("file://migrations", dbname, driver)
+	fmt.Println(migrationsDir)
+	entries, err := migrationsDir.ReadDir("migrations")
+	for _, entry := range entries {
+		fmt.Println(entry.Name())
+	}
+
+	var pathToMigrations string
+	_, err = os.Stat("./internal/server/repository/postgresql/migrations")
+	if err == nil {
+		pathToMigrations = "file://internal/server/repository/postgresql/migrations"
+	} else {
+		pathToMigrations = "file://migrations"
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(pathToMigrations, dbname, driver)
 	if err != nil {
 		return errutil.WrapError(err)
 	}
