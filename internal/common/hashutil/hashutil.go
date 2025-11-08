@@ -1,5 +1,5 @@
-// Package hash Общие процедуры взаимодейсивя с хэшем
-package hash
+// Package hashutil Общие процедуры взаимодейсивя с хэшем
+package hashutil
 
 import (
 	"crypto/hmac"

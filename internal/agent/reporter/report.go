@@ -2,55 +2,57 @@
 package reporter
 
 import (
-	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/hash"
+	"context"
+	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 	"time"
 
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/retrier"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
 )
 
-func ReportMetrics(h *services.MetricsHandler, errorsChan chan error, doneCh chan struct{}) {
+func ReportMetrics(ctx context.Context,
+	h *services.MetricsHandler,
+	sender sendmetric.MetricSender,
+	reportInterval,
+	rateLimit int,
+	errorsChan chan error) {
 
-	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(reportInterval) * time.Second)
 	for range ticker.C {
 
-		metrics, err := h.Storage.GetMetrics()
-		if err != nil {
-			logger.Log.Infoln("failed to report metrics", err.Error())
-			errorsChan <- err
+		select {
+		case <-ctx.Done():
 			return
+		default:
+
+			metrics, err := h.Storage.GetMetrics()
+			if err != nil {
+				logger.Log.Infoln("failed to report metrics", err.Error())
+				errorsChan <- err
+				return
+			}
+
+			jobs := generator(ctx, metrics)
+
+			sendMetrics := sendmetrics.New(
+				jobs,
+				sender,
+				retrier.ReportMetricRetry1{},
+			)
+
+			for w := 1; w <= rateLimit; w++ {
+				go sendMetrics.WorkerSender(ctx)
+			}
+
+			sendMetrics.ResultHandling(ctx)
 		}
-
-		jobs := generator(doneCh, metrics)
-
-		sender := httpresty.New(
-			fmt.Sprintf("%s/update/", h.ServerAddress),
-			hash.СomputeHexadecimalSha256Hash,
-		)
-
-		sendMetrics := sendmetrics.New(
-			jobs,
-			doneCh,
-			sender,
-			retrier.ReportMetricRetry1{},
-		)
-
-		for w := 1; w <= config.RateLimit; w++ {
-			go sendMetrics.WorkerSender()
-		}
-
-		sendMetrics.ResultHandling()
-
 	}
 }
 
-func generator(doneCh chan struct{}, input []models.Metrics) chan models.Metrics {
+func generator(ctx context.Context, input []models.Metrics) chan models.Metrics {
 	inputCh := make(chan models.Metrics, len(input))
 
 	go func() {
@@ -58,7 +60,7 @@ func generator(doneCh chan struct{}, input []models.Metrics) chan models.Metrics
 
 		for _, data := range input {
 			select {
-			case <-doneCh:
+			case <-ctx.Done():
 				return
 			case inputCh <- data:
 			}

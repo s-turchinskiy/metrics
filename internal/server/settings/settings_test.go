@@ -17,9 +17,15 @@ func Test_database_Set(t *testing.T) {
 		wantErr       bool
 	}{
 		{
-			name:          "Разбор строки подключения к базе данных в структуру. Успешно",
-			args:          args{s: "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"},
-			expectedValue: &database{Host: "postgres", DBName: "praktikum", Login: "postgres", Password: "postgres", FlagDatabaseDSN: ""},
+			name:          "Разбор строки подключения к базе данных в структуру с портом. Успешно",
+			args:          args{s: "postgres://login:password@host:5432/praktikum?sslmode=disable"},
+			expectedValue: &database{Host: "host", DBName: "praktikum", Login: "login", Password: "password", FlagDatabaseDSN: ""},
+			wantErr:       false,
+		},
+		{
+			name:          "Разбор строки подключения к базе данных в структуру без порта. Успешно",
+			args:          args{s: "postgres://login:password@host/praktikum?sslmode=disable"},
+			expectedValue: &database{Host: "host", DBName: "praktikum", Login: "login", Password: "password", FlagDatabaseDSN: ""},
 			wantErr:       false,
 		},
 		{

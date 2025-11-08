@@ -1,0 +1,15 @@
+CREATE SCHEMA IF NOT EXISTS postgres;
+
+CREATE TABLE IF NOT EXISTS postgres.gauges (
+    id SERIAL PRIMARY KEY,
+    metrics_name TEXT NOT NULL UNIQUE,
+    value DOUBLE PRECISION,
+    updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS postgres.counters (
+    id SERIAL PRIMARY KEY,
+    metrics_name TEXT NOT NULL UNIQUE,
+    value bigint,
+    updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);

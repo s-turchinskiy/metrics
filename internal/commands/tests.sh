@@ -1,5 +1,8 @@
 #Покажет детализацию до названий всех тестов
 go test -v ./...
+#Вместе с интеграционными тестами
+go test -v -tags="integration_tests" ./...
+
 #Покажет процент покрытия тестами, 2 способа
 go test ./... -coverprofile=coverage.html
 go test ./... -cover
@@ -13,6 +16,11 @@ go test ./... -v -coverpkg=./... -coverprofile=coverage.html && go tool cover -h
 
 #Покажет общее покрытие тестами, вывод в консоль, не в html
 go test -v -coverpkg=./... -coverprofile=coverage.html ./... && go tool cover -func coverage.html
+#Вместе с интеграционными тестами
+go test -v -tags="integration_tests" -coverpkg=./... -coverprofile=coverage.html ./... && go tool cover -func coverage.html
+# github.com/s-turchinskiy/metrics/cmd/server
+
+
 #Исключая сгенерированные модули, их надо исключать
 go test -v -coverpkg=./... -coverprofile=coverage.html ./...
 /internal/server/models/models_easyjson /internal/server/repository/mock/mock_store #вручную удаляем
@@ -20,3 +28,5 @@ go tool cover -func coverage.html
 
 #Бенчмарки. надо переключаться на директорию и указывать точку, ./... не работает. -benchmem - добавляет данные по оперативке к процессору
 cd /home/stanislav/go/metrics/cmd/agent && go test -bench . -benchmem
+#Интеграционные тесты, когда база создается в докере, то надо сделать перед этим, чтобы запускать без sudo:
+sudo setfacl --modify user:stanislav:rw /var/run/docker.sock

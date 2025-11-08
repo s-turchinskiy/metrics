@@ -1,5 +1,5 @@
-// Package file Общие процедуры взаимодействия с файлами
-package file
+// Package fileutil Общие процедуры взаимодействия с файлами
+package fileutil
 
 import (
 	"errors"

@@ -29,7 +29,7 @@ func TestMetricsHandler_Ping(t *testing.T) {
 
 	tests := []test{
 		{
-			handler: NewHandler(ctx1, mock),
+			handler: NewHandler(ctx1, mock, "", true),
 			ct: testingcommon.Test{
 				Name:        "Успешно",
 				Method:      http.MethodGet,
@@ -40,7 +40,7 @@ func TestMetricsHandler_Ping(t *testing.T) {
 				}},
 		},
 		{
-			handler: NewHandler(ctx2, mock),
+			handler: NewHandler(ctx2, mock, "", true),
 			ct: testingcommon.Test{
 				Name:        "Не успешно",
 				Method:      http.MethodGet,

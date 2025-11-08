@@ -20,5 +20,6 @@ type Repository interface {
 	ReloadAllCounters(context.Context, map[string]int64) error
 	ReloadAllMetrics(context.Context, []models.StorageMetrics) (int64, error)
 
+	Close(ctx context.Context) error
 	Ping(ctx context.Context) ([]byte, error)
 }

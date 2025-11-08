@@ -109,3 +109,7 @@ func (m *MemCashed) UpdateGauge(ctx context.Context, metricsName string, newValu
 	return nil
 
 }
+
+func (m *MemCashed) Close(ctx context.Context) error {
+	return nil
+}

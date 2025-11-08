@@ -2,6 +2,7 @@
 package sendmetrics
 
 import (
+	"context"
 	"errors"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
@@ -20,14 +21,12 @@ type SendMetrics struct {
 	numJobs int
 	jobs    <-chan models.Metrics
 	results chan error
-	done    chan struct{}
 	sender  sendmetric.MetricSender
 	retrier retrier.ReportMetricRetrier
 }
 
 func New(
 	jobs <-chan models.Metrics,
-	done chan struct{},
 	sender sendmetric.MetricSender,
 	retrier retrier.ReportMetricRetrier) *SendMetrics {
 
@@ -35,19 +34,18 @@ func New(
 		numJobs: cap(jobs),
 		jobs:    jobs,
 		results: make(chan error, cap(jobs)),
-		done:    done,
 		sender:  sender,
 		retrier: retrier,
 	}
 }
 
-func (s *SendMetrics) ResultHandling() {
+func (s *SendMetrics) ResultHandling(ctx context.Context) {
 
 	var err error
 	var errs []error
 	for a := 1; a <= s.numJobs; a++ {
 		select {
-		case <-s.done:
+		case <-ctx.Done():
 			return
 		case err = <-s.results:
 			if err != nil {
@@ -67,12 +65,12 @@ func (s *SendMetrics) ResultHandling() {
 
 }
 
-func (s *SendMetrics) WorkerSender() {
+func (s *SendMetrics) WorkerSender(ctx context.Context) {
 
 	for metric := range s.jobs {
 
 		select {
-		case <-s.done:
+		case <-ctx.Done():
 			return
 		default:
 			if s.retrier != nil {
