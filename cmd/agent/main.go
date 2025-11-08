@@ -8,6 +8,7 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
 	"log"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -60,7 +61,13 @@ func main() {
 	errorsCh := make(chan error)
 	go closer.ProcessingErrorsChannel(errorsCh)
 
-	go services.UpdateMetrics(ctx, metricsHandler, cfg.PollInterval, errorsCh)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		go services.UpdateMetrics(ctx, metricsHandler, cfg.PollInterval, errorsCh)
+	}()
 
 	sender := httpresty.New(
 		fmt.Sprintf("%s/update/", metricsHandler.ServerAddress),
@@ -68,18 +75,24 @@ func main() {
 		cfg.HashKey,
 		cfg.RSAPublicKey,
 	)
-	go reporter.ReportMetrics(
-		ctx,
-		metricsHandler,
-		sender,
-		cfg.ReportInterval,
-		cfg.RateLimit,
-		errorsCh)
+	go func() {
+		defer wg.Done()
+
+		reporter.ReportMetrics(
+			ctx,
+			metricsHandler,
+			sender,
+			cfg.ReportInterval,
+			cfg.RateLimit,
+			errorsCh)
+	}()
 
 	//go reporter.ReportMetricsBatch(metricsHandler, cfg.ReportInterval, errors)
 
 	<-ctx.Done()
 	err = closer.Shutdown()
+
+	wg.Wait()
 
 	log.Fatal(err)
 

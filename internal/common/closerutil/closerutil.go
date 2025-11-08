@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/common/reflectutil"
-	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"log"
 	"strings"
 	"sync"
@@ -70,19 +69,18 @@ func (c *Closer) close(ctx context.Context) (log []string, err error) {
 func (c *Closer) Shutdown() error {
 
 	log.Println("shutting down server gracefully")
-	logger.Log.Info("shutting down server gracefully")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	shutdownLog, err := c.close(shutdownCtx)
-	for _, s := range shutdownLog {
-		logger.Log.Debugw(s)
-	}
+	_, err := c.close(shutdownCtx)
 
 	if err != nil {
 		return fmt.Errorf("closerutil: %v", err)
 	}
+
+	time.Sleep(100 * time.Millisecond)
+	log.Println("server was shutdown successfully")
 
 	return nil
 
@@ -96,9 +94,9 @@ func (c *Closer) ProcessingErrorsChannel(errorsCh chan error) {
 		return
 	}
 
-	logger.Log.Infow("error, server stopped", "error", err.Error())
+	log.Println("error, server will be stopped", "error", err.Error())
 	errShutdown := c.Shutdown()
 	if errShutdown != nil {
-		logger.Log.Fatalw("fatal error", "error", err.Error(), "error shutdown", errShutdown.Error())
+		log.Fatal("fatal error", "error", err.Error(), "error shutdown", errShutdown.Error())
 	}
 }

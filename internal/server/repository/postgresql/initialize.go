@@ -70,7 +70,7 @@ func Initialize(ctx context.Context, dbAddr, dbName string) (repository.Reposito
 }
 
 //go:embed migrations/*.sql
-var migrationsDir embed.FS
+var _ embed.FS
 
 func runMigrations(db *sql.DB, dbname string) error {
 

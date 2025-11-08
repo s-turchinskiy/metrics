@@ -76,7 +76,7 @@ func main() {
 		settings.Settings.RSAPrivateKey,
 		settings.Settings.HashKey,
 	)
-	closer.Add(handlers.FuncHTTPServerShutdown(httpServer))
+	closer.Add(handlers.FuncHTTPServerShutdown(httpServer, logger.Log))
 
 	go func() {
 		err = handlers.RunHTTPServer(httpServer, settings.Settings.EnableHTTPS, pathCert, pathRSAPrivateKey)
@@ -94,8 +94,10 @@ func main() {
 	<-ctx.Done()
 	err = closer.Shutdown()
 
-	logger.Log.Infow("error, server stopped", "error", err.Error())
-	log.Fatal(err)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandler, errors chan error) {

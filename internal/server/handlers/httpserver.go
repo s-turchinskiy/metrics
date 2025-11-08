@@ -60,14 +60,14 @@ func RunHTTPServer(server *http.Server, enableHTTPS bool, pathCert, pathRSAPriva
 
 }
 
-func FuncHTTPServerShutdown(httpServer *http.Server) func(ctx context.Context) error {
+func FuncHTTPServerShutdown(httpServer *http.Server, zaplog *zap.SugaredLogger) func(ctx context.Context) error {
 
 	return func(ctx context.Context) error {
 		err := httpServer.Shutdown(ctx)
 		if err != nil {
-			logger.Log.Infow("HTTP server stopped with error", zap.String("error", err.Error()))
+			zaplog.Infow("HTTP server stopped with error", zap.String("error", err.Error()))
 		} else {
-			logger.Log.Infow("HTTP server stopped")
+			zaplog.Infow("HTTP server stopped")
 		}
 		return err
 	}
