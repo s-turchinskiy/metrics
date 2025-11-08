@@ -76,10 +76,9 @@ func main() {
 		settings.Settings.RSAPrivateKey,
 		settings.Settings.HashKey,
 	)
-	closer.Add(handlers.FuncHTTPServerShutdown(httpServer, logger.Log))
-
+	closer.Add(httpServer.FuncShutdown(logger.Log))
 	go func() {
-		err = handlers.RunHTTPServer(httpServer, settings.Settings.EnableHTTPS, pathCert, pathRSAPrivateKey)
+		err = httpServer.Run(settings.Settings.EnableHTTPS, pathCert, pathRSAPrivateKey)
 		if err != nil {
 
 			logger.Log.Errorw("Server startup error", "error", err.Error())

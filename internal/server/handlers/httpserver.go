@@ -5,19 +5,23 @@ import (
 	"crypto/rsa"
 	"errors"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsautil"
+	"github.com/s-turchinskiy/metrics/internal/common/rsautil"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"time"
 )
 
+type HTTPServer struct {
+	*http.Server
+}
+
 func NewHTTPServer(
 	handler *MetricsHandler,
 	addr string, readTimeout,
 	writeTimeout time.Duration,
 	rsaPrivateKey *rsa.PrivateKey,
-	hashKey string) *http.Server {
+	hashKey string) *HTTPServer {
 
 	server := &http.Server{
 		Addr:         addr,
@@ -26,11 +30,11 @@ func NewHTTPServer(
 		WriteTimeout: writeTimeout,
 	}
 
-	return server
+	return &HTTPServer{server}
 
 }
 
-func RunHTTPServer(server *http.Server, enableHTTPS bool, pathCert, pathRSAPrivateKey string) error {
+func (httpServer *HTTPServer) Run(enableHTTPS bool, pathCert, pathRSAPrivateKey string) error {
 
 	var err error
 
@@ -43,11 +47,11 @@ func RunHTTPServer(server *http.Server, enableHTTPS bool, pathCert, pathRSAPriva
 			}
 		}
 
-		err = server.ListenAndServeTLS(pathCert, pathRSAPrivateKey)
+		err = httpServer.ListenAndServeTLS(pathCert, pathRSAPrivateKey)
 
 	} else {
 
-		err = server.ListenAndServe()
+		err = httpServer.ListenAndServe()
 	}
 
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -60,7 +64,19 @@ func RunHTTPServer(server *http.Server, enableHTTPS bool, pathCert, pathRSAPriva
 
 }
 
-func FuncHTTPServerShutdown(httpServer *http.Server, zaplog *zap.SugaredLogger) func(ctx context.Context) error {
+// WrapShutdown logger.Log.Infow - это по факту не работает, s.base.Core().Enabled(lvl) начинает возвращать false, но причем только тут
+func (httpServer *HTTPServer) WrapShutdown(ctx context.Context) error {
+
+	err := httpServer.Shutdown(ctx)
+	if err != nil {
+		logger.Log.Infow("HTTP server stopped with error", zap.String("error", err.Error()))
+	} else {
+		logger.Log.Infow("HTTP server stopped")
+	}
+	return err
+}
+
+func (httpServer *HTTPServer) FuncShutdown(zaplog *zap.SugaredLogger) func(ctx context.Context) error {
 
 	return func(ctx context.Context) error {
 		err := httpServer.Shutdown(ctx)
