@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/utils/closerutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
@@ -17,7 +18,6 @@ import (
 	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/reporter"
-	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 )
 
@@ -50,50 +50,42 @@ func main() {
 	defer stop()
 	closer := closerutil.New(20 * time.Second)
 
-	metricsHandler := &services.MetricsHandler{
-		Storage: &repositories.MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
-		ServerAddress: "http://" + cfg.Addr.String(),
+	storage := &repositories.MetricsStorage{
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
 	}
 
-	errorsCh := make(chan error)
-	go closer.ProcessingErrorsChannel(errorsCh)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		go services.UpdateMetrics(ctx, metricsHandler, cfg.PollInterval, errorsCh)
-	}()
-
 	sender := httpresty.New(
-		fmt.Sprintf("%s/update/", metricsHandler.ServerAddress),
+		fmt.Sprintf("%s/update/", "http://"+cfg.Addr.String()),
 		httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
 		httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
+		httpresty.WithRealIP(cfg.LocalIP),
 	)
+
+	report := reporter.New(storage, sender, cfg.ReportInterval, cfg.RateLimit)
+	service := services.New(storage, report, cfg.Addr.String(), cfg.PollInterval)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
-
-		reporter.ReportMetrics(
-			ctx,
-			metricsHandler,
-			sender,
-			cfg.ReportInterval,
-			cfg.RateLimit,
-			errorsCh)
+		err = service.Run(ctx)
+		if err != nil {
+			logger.Log.Info(err)
+			//closer.ProcessingErrors(err)
+			stop()
+		}
 	}()
-
-	//go reporter.ReportMetricsBatch(metricsHandler, cfg.ReportInterval, errors)
 
 	<-ctx.Done()
 	err = closer.Shutdown()
 
 	wg.Wait()
 
-	log.Fatal(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 }
 

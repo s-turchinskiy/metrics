@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/utils/configutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/netutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 	"os"
 	"runtime"
@@ -27,11 +28,12 @@ type ProgramConfig struct {
 	RateLimit        int //Количество одновременно исходящих запросов на сервер
 	rsaPublicKeyPath string
 	RSAPublicKey     *rsa.PublicKey
+	LocalIP          string
 }
 
 func ParseFlags() (*ProgramConfig, error) {
 
-	cfg := ProgramConfig{}
+	cfg := ProgramConfig{LocalIP: netutil.LocalIP()}
 
 	cfg.Addr = &NetAddress{Host: "localhost", Port: 8080}
 

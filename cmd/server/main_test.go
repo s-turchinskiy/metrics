@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/s-turchinskiy/metrics/internal/utils/testingcommon"
 	"github.com/s-turchinskiy/metrics/internal/server/handlers"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/gzip"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/server/settings"
+	"github.com/s-turchinskiy/metrics/internal/utils/testingcommon"
 )
 
 type want struct {

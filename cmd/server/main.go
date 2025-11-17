@@ -9,6 +9,7 @@ import (
 	"log"
 	_ "net/http/pprof"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -64,9 +65,6 @@ func main() {
 
 	}
 
-	errorsCh := make(chan error)
-	go closer.ProcessingErrorsChannel(errorsCh)
-
 	metricsHandler := handlers.NewHandler(ctx, rep, settings.Settings.FileStoragePath, settings.Settings.AsynchronousWritingDataToFile)
 	httpServer := handlers.NewHTTPServer(
 		metricsHandler,
@@ -75,23 +73,37 @@ func main() {
 		10*time.Second,
 		settings.Settings.RSAPrivateKey,
 		settings.Settings.HashKey,
+		settings.Settings.TrustedSubnetTyped,
 	)
 	closer.Add(httpServer.FuncShutdown(logger.Log))
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	go func() {
+		defer wg.Done()
 		err = httpServer.Run(settings.Settings.EnableHTTPS, pathCert, pathRSAPrivateKey)
 		if err != nil {
 
 			logger.Log.Errorw("Server startup error", "error", err.Error())
-			errorsCh <- err
-			return
+			stop()
 		}
 	}()
 
-	go saveMetricsToFilePeriodically(ctx, metricsHandler, errorsCh)
+	go func() {
+		defer wg.Done()
+		err = saveMetricsToFilePeriodically(ctx, metricsHandler)
+		if err != nil {
+			logger.Log.Errorw("Server startup error", "error", err.Error())
+		}
+	}()
+
 	closer.Add(metricsHandler.Service.SaveMetricsToFile)
 
 	<-ctx.Done()
 	err = closer.Shutdown()
+
+	wg.Wait()
 
 	if err != nil {
 		log.Fatal(err)
@@ -99,10 +111,10 @@ func main() {
 
 }
 
-func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandler, errors chan error) {
+func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandler) error {
 
 	if !settings.Settings.AsynchronousWritingDataToFile {
-		return
+		return nil
 	}
 
 	ticker := time.NewTicker(time.Duration(settings.Settings.StoreInterval) * time.Second)
@@ -111,8 +123,8 @@ func saveMetricsToFilePeriodically(ctx context.Context, h *handlers.MetricsHandl
 		err := h.Service.SaveMetricsToFile(ctx)
 		if err != nil {
 			logger.Log.Infoln("error", err.Error())
-			errors <- err
-			return
+			return err
 		}
 	}
+	return nil
 }

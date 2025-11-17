@@ -7,20 +7,19 @@ import (
 	"net/http"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	"github.com/s-turchinskiy/metrics/internal/agent/models"
 )
 
 type MetricSender interface {
-	Send(models.Metrics) error
+	Send(any) error
 }
 
-func HandlerErrors(err error, metric models.Metrics, url string) {
+func HandlerErrors(err error, data any, url string) {
 
 	if err != nil {
 
 		text := err.Error()
 		var bytes []byte
-		bytes, err2 := json.Marshal(metric)
+		bytes, err2 := json.Marshal(data)
 		if err2 != nil {
 			logger.Log.Infow("conversion error metric",
 				"error", err2.Error(),

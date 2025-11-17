@@ -10,7 +10,6 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 
-	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 )
 
@@ -20,6 +19,7 @@ type ReportMetricsHTTPResty struct {
 	hashFunc     hashutil.HashFunc
 	hashKey      string
 	rsaPublicKey *rsa.PublicKey
+	realIP       string
 }
 
 type OptionHTTPResty func(*ReportMetricsHTTPResty)
@@ -52,9 +52,15 @@ func WithRsaPublicKey(rsaPublicKey *rsa.PublicKey) OptionHTTPResty {
 	}
 }
 
-func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
+func WithRealIP(ip string) OptionHTTPResty {
+	return func(r *ReportMetricsHTTPResty) {
+		r.realIP = ip
+	}
+}
 
-	body, err := json.Marshal(metric)
+func (r *ReportMetricsHTTPResty) Send(data any) error {
+
+	body, err := json.Marshal(data)
 	if err != nil {
 		return errutil.WrapError(fmt.Errorf("error json marshal data"))
 	}
@@ -70,6 +76,10 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 		SetHeader("Content-Type", "application/json").
 		SetBody(body)
 
+	if r.realIP != "" {
+		request.SetHeader("X-Real-IP", r.realIP)
+	}
+
 	if r.hashKey != "" && r.hashFunc != nil {
 
 		hash := r.hashFunc(r.hashKey, body)
@@ -79,7 +89,7 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 	resp, err := request.Post(r.url)
 
 	if err != nil {
-		sendmetric.HandlerErrors(err, metric, r.url)
+		sendmetric.HandlerErrors(err, data, r.url)
 		return err
 	}
 
