@@ -2,30 +2,53 @@
 package httpresty
 
 import (
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
-	"github.com/s-turchinskiy/metrics/internal/common/hash"
-
 	"github.com/go-resty/resty/v2"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 )
 
 type ReportMetricsHTTPResty struct {
-	client   *resty.Client
-	url      string
-	hashFunc hash.HashFunc
+	client       *resty.Client
+	url          string
+	hashFunc     hashutil.HashFunc
+	hashKey      string
+	rsaPublicKey *rsa.PublicKey
 }
 
-func New(url string, hashFunc hash.HashFunc) *ReportMetricsHTTPResty {
+type OptionHTTPResty func(*ReportMetricsHTTPResty)
 
-	return &ReportMetricsHTTPResty{
-		client:   resty.New(),
-		url:      url,
-		hashFunc: hashFunc,
+func New(url string, opts ...OptionHTTPResty) *ReportMetricsHTTPResty {
+
+	r := &ReportMetricsHTTPResty{
+		client: resty.New(),
+		url:    url,
+	}
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	return r
+
+}
+
+func WithHash(hashKey string, hashFunc hashutil.HashFunc) OptionHTTPResty {
+	return func(r *ReportMetricsHTTPResty) {
+		r.hashKey = hashKey
+		r.hashFunc = hashFunc
+	}
+}
+
+func WithRsaPublicKey(rsaPublicKey *rsa.PublicKey) OptionHTTPResty {
+	return func(r *ReportMetricsHTTPResty) {
+		r.rsaPublicKey = rsaPublicKey
 	}
 }
 
@@ -33,16 +56,23 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 
 	body, err := json.Marshal(metric)
 	if err != nil {
-		return error2.WrapError(fmt.Errorf("error json marshal data"))
+		return errutil.WrapError(fmt.Errorf("error json marshal data"))
+	}
+
+	if r.rsaPublicKey != nil {
+		body, err = rsautil.Encrypt(r.rsaPublicKey, body)
+		if err != nil {
+			return err
+		}
 	}
 
 	request := r.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(body)
 
-	if config.HashKey != "" && r.hashFunc != nil {
+	if r.hashKey != "" && r.hashFunc != nil {
 
-		hash := r.hashFunc(config.HashKey, body)
+		hash := r.hashFunc(r.hashKey, body)
 		request.SetHeader("HashSHA256", hash)
 	}
 

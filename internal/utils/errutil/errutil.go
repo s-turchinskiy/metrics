@@ -1,5 +1,5 @@
-// Package error Общие процедуры обработки ошибок
-package error
+// Package errutil Общие процедуры обработки ошибок
+package errutil
 
 import (
 	"fmt"

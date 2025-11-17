@@ -17,14 +17,14 @@ func ExampleService_UpdateTypedMetrics() {
 	var value = 1.23
 	var delta int64 = 2
 	metrics := []models.StorageMetrics{
-		{MType: "Gauge", Name: "someMetric", Value: &value},
-		{MType: "Counter", Name: "someMetric", Delta: &delta},
+		{MType: "gauge", Name: "someMetric", Value: &value},
+		{MType: "counter", Name: "someMetric", Delta: &delta},
 	}
 
-	s := New(rep, nil)
+	s := New(rep, nil, "")
 	res, err := s.UpdateTypedMetrics(context.Background(), metrics)
 	fmt.Println(res, err)
 
 	// Output:
-	// 2, nil
+	// 2 <nil>
 }

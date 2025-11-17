@@ -2,6 +2,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -11,7 +12,6 @@ import (
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 
-	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 )
@@ -33,13 +33,13 @@ type MetricsHandler struct {
 }
 
 // UpdateMetrics Обновление метрик в хранилище
-func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
+func UpdateMetrics(ctx context.Context, h *MetricsHandler, pollInterval int, errors chan error) {
 
-	ticker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
 	for range ticker.C {
 
 		select {
-		case <-doneCh:
+		case <-ctx.Done():
 			return
 		default:
 			metrics, err := GetMetrics(1 * time.Second)
@@ -50,7 +50,6 @@ func UpdateMetrics(h *MetricsHandler, errors chan error, doneCh chan struct{}) {
 			err = h.Storage.UpdateMetrics(metrics)
 			if err != nil {
 				logger.Log.Infoln("storage update metrics error", err.Error())
-				doneCh <- struct{}{}
 				errors <- err
 				return
 			}

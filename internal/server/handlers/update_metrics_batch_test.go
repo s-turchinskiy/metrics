@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/golang/mock/gomock"
-	"github.com/s-turchinskiy/metrics/internal/common/testingcommon"
 	mocksrepository "github.com/s-turchinskiy/metrics/internal/server/repository/mock"
+	"github.com/s-turchinskiy/metrics/internal/utils/testingcommon"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +32,7 @@ func TestMetricsHandler_UpdateMetricsBatch(t *testing.T) {
 
 	tests := []test{
 		{
-			handler: NewHandler(ctx1, mock),
+			handler: NewHandler(ctx1, mock, "", true),
 			ct: testingcommon.Test{
 				Name:        "Успешно",
 				Method:      http.MethodPost,
@@ -55,7 +55,7 @@ func TestMetricsHandler_UpdateMetricsBatch(t *testing.T) {
 				}},
 		},
 		{
-			handler: NewHandler(ctx2, mock),
+			handler: NewHandler(ctx2, mock, "", true),
 			ct: testingcommon.Test{
 				Name:        "Не успешно",
 				Method:      http.MethodPost,
@@ -73,7 +73,7 @@ func TestMetricsHandler_UpdateMetricsBatch(t *testing.T) {
 				}},
 		},
 		{
-			handler: NewHandler(ctx2, mock),
+			handler: NewHandler(ctx2, mock, "", true),
 			ct: testingcommon.Test{
 				Name:        "Неправильный json",
 				Method:      http.MethodPost,

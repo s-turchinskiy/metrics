@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	error2 "github.com/s-turchinskiy/metrics/internal/common/error"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
 	"io"
 	"net/http"
 
@@ -11,7 +11,6 @@ import (
 
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	"github.com/s-turchinskiy/metrics/internal/server/models"
-	"github.com/s-turchinskiy/metrics/internal/server/settings"
 )
 
 // UpdateMetricJSON godoc
@@ -35,12 +34,12 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			logger.Log.Info("cannot decode request JSON body", zap.Error(error2.WrapError(err)))
-			logger.Log.Debugw(error2.WrapError(fmt.Errorf("error read body")).Error())
+			logger.Log.Info("cannot decode request JSON body", zap.Error(errutil.WrapError(err)))
+			logger.Log.Debugw(errutil.WrapError(fmt.Errorf("error read body")).Error())
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		logger.Log.Info("cannot decode request JSON body", zap.Error(error2.WrapError(err)), zap.String("body", string(body)))
+		logger.Log.Info("cannot decode request JSON body", zap.Error(errutil.WrapError(err)), zap.String("body", string(body)))
 
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -65,7 +64,7 @@ func (h *MetricsHandler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if !settings.Settings.AsynchronousWritingDataToFile {
+	if !h.asynchronousWritingDataToFile {
 		err := h.Service.SaveMetricsToFile(r.Context())
 		if err != nil {
 			logger.Log.Info("error SaveMetricsToFile", zap.Error(err))

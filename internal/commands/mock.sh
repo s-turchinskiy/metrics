@@ -1,1 +1,1 @@
-#mockgen -destination=internal/server/repository/mock/mock_store.go -package=mocksrepository github.com/s-turchinskiy/metrics/internal/server/repository Repository
+mockgen -destination=internal/server/repository/mock/mock_store.go -package=mocksrepository github.com/s-turchinskiy/metrics/internal/server/repository Repository

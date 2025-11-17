@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/s-turchinskiy/metrics/internal/common/testingcommon"
+	"github.com/s-turchinskiy/metrics/internal/utils/testingcommon"
 	"github.com/s-turchinskiy/metrics/internal/server/handlers"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/gzip"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
@@ -220,7 +220,7 @@ func TestMetricsHandler_UpdateMetricJSON(t *testing.T) {
 		Counter: make(map[string]int64),
 	}
 
-	h := &handlers.MetricsHandler{Service: service.New(rep, nil)}
+	h := &handlers.MetricsHandler{Service: service.New(rep, nil, "")}
 
 	handler := gzip.GzipMiddleware(http.HandlerFunc(h.UpdateMetricJSON))
 
@@ -311,7 +311,7 @@ func TestMetricsHandler_GetTypedMetric(t *testing.T) {
 		Counter: map[string]int64{"someMetric": 2},
 	}
 
-	h := &handlers.MetricsHandler{Service: service.New(rep, nil)}
+	h := &handlers.MetricsHandler{Service: service.New(rep, nil, "")}
 
 	//handler := http.HandlerFunc(gzipMiddleware(h.GetTypedMetric))
 	handler := gzip.GzipMiddleware(http.HandlerFunc(h.GetTypedMetric))
@@ -414,7 +414,7 @@ func TestInspectDatabase(t *testing.T) {
 	})
 
 	suite.Run("delay", func() {
-		time.Sleep(5 * time.Second)
+		timeutil.Sleep(5 * timeutil.Second)
 	})
 
 	suite.Run("inspect", func() {

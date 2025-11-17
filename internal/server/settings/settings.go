@@ -2,18 +2,23 @@
 package settings
 
 import (
+	"crypto/rsa"
 	"errors"
 	"flag"
 	"fmt"
+	configutils "github.com/s-turchinskiy/metrics/internal/utils/configutil"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/caarlos0/env/v11"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/s-turchinskiy/metrics/internal/common/file"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
+	"github.com/s-turchinskiy/metrics/internal/utils/fileutil"
+	rsautil "github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 )
 
 const (
@@ -31,11 +36,14 @@ const (
 
 type ProgramSettings struct {
 	Address                       netAddress `yaml:"ADDRESS" lc:"net address host:port to run server"`
-	StoreInterval                 int        `yaml:"STORE_INTERVAL" lc:"интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)"`
-	FileStoragePath               string     `yaml:"FILE_STORAGE_PATH" lc:"путь до файла, куда сохраняются текущие значения"`
-	Restore                       bool       `yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
-	Database                      database   `yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
-	HashKey                       string     `yaml:"HASH_KEY" lc:"HashSHA256 ключ для обмена между агентом и сервером"`
+	StoreInterval                 int        `env:"STORE_INTERVAL" yaml:"STORE_INTERVAL" lc:"интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)"`
+	FileStoragePath               string     `env:"FILE_STORAGE_PATH" yaml:"FILE_STORAGE_PATH" lc:"путь до файла, куда сохраняются текущие значения"`
+	Restore                       bool       `env:"RESTORE" yaml:"RESTORE" lc:"определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера"`
+	Database                      database   `env:"DATABASE_DSN" yaml:"DATABASE_DSN" lc:"данные для подключения к базе данных"`
+	HashKey                       string     `env:"KEY" yaml:"HASH_KEY" lc:"HashSHA256 ключ для обмена между агентом и сервером"`
+	RSAPrivateKeyPath             string     `env:"CRYPTO_KEY" yaml:"CRYPTO_KEY" lc:"Путь к приватному ключу RSA"`
+	EnableHTTPS                   bool       `env:"ENABLE_HTTPS" yaml:"ENABLE_HTTPS" lc:"Включить HTTPS"`
+	RSAPrivateKey                 *rsa.PrivateKey
 	AsynchronousWritingDataToFile bool
 	Store                         Store
 }
@@ -123,18 +131,79 @@ func GetSettings() error {
 		Database:        database{Host: "localhost", DBName: "metrics", Login: "metrics"},
 	}
 
-	err := file.ReadSaveYaml(&Settings, filenameSettings)
+	configFilePath := configutils.GetConfigFilePath()
+	if configFilePath != "" {
+		if err := loadConfigFromJSON(&Settings, configFilePath); err != nil {
+			return fmt.Errorf("failed to load configutil from JSON: %w", err)
+		}
+	}
+
+	err := fileutil.ReadSaveYaml(&Settings, filenameSettings)
 	if err != nil {
 		return err
 	}
 
 	secretSettings := SecretSettings{}
-	err = file.ReadSaveYaml(&secretSettings, filenameSecretSettings)
+	err = fileutil.ReadSaveYaml(&secretSettings, filenameSecretSettings)
 
 	if err != nil {
 		return err
 	}
 	Settings.Database.Password = secretSettings.DBPassword
+
+	parseFlags()
+
+	err = env.ParseWithOptions(&Settings, env.Options{
+		FuncMap: map[reflect.Type]env.ParserFunc{
+			reflect.TypeOf(database{}): func(incomingData string) (interface{}, error) {
+				db := database{}
+				err = db.Set(incomingData)
+				if err != nil {
+					return nil, err
+				}
+
+				db.FlagDatabaseDSN = incomingData
+
+				return db, nil
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
+		err = Settings.Address.Set(envAddr)
+		if err != nil {
+			return err
+		}
+	}
+
+	logger.Log.Debug("Received DatabaseDsn from env: ", os.Getenv("DATABASE_DSN"))
+
+	Settings.AsynchronousWritingDataToFile = Settings.StoreInterval != 0
+
+	if os.Getenv("FILE_STORAGE_PATH") != "" || isFlagPassed("f") {
+		Settings.Store = File
+	}
+
+	if os.Getenv("DATABASE_DSN") != "" || isFlagPassed("d") {
+		Settings.Store = Database
+	}
+
+	if Settings.RSAPrivateKeyPath != "" {
+		Settings.RSAPrivateKey, err = rsautil.ReadPrivateKey(Settings.RSAPrivateKeyPath)
+		if err != nil {
+			err = fmt.Errorf("path: %s, error: %w", Settings.RSAPrivateKeyPath, err)
+			return err
+		}
+	}
+
+	logger.LogNoSugar.Info("Settings", zap.Inline(Settings)) //если Sugar, то выводит без имен
+	return nil
+}
+
+func parseFlags() {
 
 	flag.Var(&Settings.Address, "a", "Net address host:port")
 	//flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
@@ -143,62 +212,10 @@ func GetSettings() error {
 	flag.BoolVar(&Settings.Restore, "r", Settings.Restore, "Определяет загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
 	flag.Var(&Settings.Database, "d", "path to database")
 	flag.StringVar(&Settings.HashKey, "k", "", "HashSHA256 key")
+	flag.StringVar(&Settings.RSAPrivateKeyPath, "crypto-key", "", "Путь до файла с приватным ключом")
+	flag.BoolVar(&Settings.EnableHTTPS, "s", Settings.EnableHTTPS, "Определяет включен ли HTTPS")
 	flag.Parse()
 
-	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
-		err := Settings.Address.Set(envAddr)
-		if err != nil {
-			return err
-		}
-	}
-
-	if value := os.Getenv("STORE_INTERVAL"); value != "" {
-		storeInterval, err := strconv.Atoi(value)
-		if err != nil {
-			return err
-		}
-		Settings.StoreInterval = storeInterval
-	}
-
-	FileStoragePath := os.Getenv("FILE_STORAGE_PATH")
-	if FileStoragePath != "" {
-		Settings.FileStoragePath = FileStoragePath
-	}
-
-	if value := os.Getenv("RESTORE"); value != "" {
-		restore, err := strconv.ParseBool(value)
-		if err != nil {
-			return err
-		}
-		Settings.Restore = restore
-	}
-
-	if value := os.Getenv("KEY"); value != "" {
-		Settings.HashKey = value
-	}
-
-	DatabaseDsn := os.Getenv("DATABASE_DSN")
-	logger.Log.Debug("Received DatabaseDsn from env: ", DatabaseDsn)
-	if DatabaseDsn != "" {
-		err := Settings.Database.Set(DatabaseDsn)
-		if err != nil {
-			return err
-		}
-		Settings.Database.FlagDatabaseDSN = DatabaseDsn
-	}
-
-	Settings.AsynchronousWritingDataToFile = Settings.StoreInterval != 0
-
-	if FileStoragePath != "" || isFlagPassed("f") {
-		Settings.Store = File
-	}
-
-	if DatabaseDsn != "" || isFlagPassed("d") {
-		Settings.Store = Database
-	}
-
-	logger.LogNoSugar.Info("Settings", zap.Inline(Settings)) //если Sugar, то выводит без имен
-	return nil
 }
 
 func isFlagPassed(name string) bool {
@@ -239,20 +256,19 @@ func (d *database) Set(s string) error {
 	s = strings.Replace(s, "://", " ", 1)
 	s = strings.Replace(s, ":", " ", 1)
 	s = strings.Replace(s, "@", " ", 1)
-	s = strings.Replace(s, ":", " ", 1)
 	s = strings.Replace(s, "/", " ", 1)
 	s = strings.Replace(s, "?", " ", 1)
 
 	hp := strings.Split(s, " ")
-	if len(hp) < 6 {
+	if len(hp) != 6 {
 		//return errors.New("need address in a form host=%s user=%s password=%s dbname=%s sslmode=disable")
 		return errors.New("incorrect format database-dsn")
 	}
 
-	d.Host = hp[3]
 	d.Login = hp[1]
 	d.Password = hp[2]
-	d.DBName = hp[5]
+	d.Host = strings.Split(hp[3], ":")[0]
+	d.DBName = hp[4]
 
 	return nil
 }

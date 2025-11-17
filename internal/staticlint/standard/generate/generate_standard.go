@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/s-turchinskiy/metrics/internal/common/codegeneration"
+	"github.com/s-turchinskiy/metrics/internal/utils/codegeneration"
 	"log"
 	"os"
 )

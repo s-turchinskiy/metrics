@@ -1,8 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
+	"github.com/s-turchinskiy/metrics/internal/utils/closerutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"log"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 
@@ -33,27 +41,58 @@ func main() {
 		logger.Log.Debugw("Error loading .env file", "error", err.Error())
 	}
 
-	addr := config.NetAddress{Host: "localhost", Port: 8080}
-	config.ParseFlags(&addr)
+	cfg, err := config.ParseFlags()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+	closer := closerutil.New(20 * time.Second)
 
 	metricsHandler := &services.MetricsHandler{
 		Storage: &repositories.MetricsStorage{
 			Gauge:   make(map[string]float64),
 			Counter: make(map[string]int64),
 		},
-		ServerAddress: "http://" + addr.String(),
+		ServerAddress: "http://" + cfg.Addr.String(),
 	}
 
-	errorsChan := make(chan error)
+	errorsCh := make(chan error)
+	go closer.ProcessingErrorsChannel(errorsCh)
 
-	doneCh := make(chan struct{})
-	defer close(doneCh)
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	go services.UpdateMetrics(metricsHandler, errorsChan, doneCh)
-	go reporter.ReportMetrics(metricsHandler, errorsChan, doneCh)
-	//go reporter.ReportMetricsBatch(metricsHandler, errors)
+	go func() {
+		defer wg.Done()
+		go services.UpdateMetrics(ctx, metricsHandler, cfg.PollInterval, errorsCh)
+	}()
 
-	err = <-errorsChan
+	sender := httpresty.New(
+		fmt.Sprintf("%s/update/", metricsHandler.ServerAddress),
+		httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
+		httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
+	)
+	go func() {
+		defer wg.Done()
+
+		reporter.ReportMetrics(
+			ctx,
+			metricsHandler,
+			sender,
+			cfg.ReportInterval,
+			cfg.RateLimit,
+			errorsCh)
+	}()
+
+	//go reporter.ReportMetricsBatch(metricsHandler, cfg.ReportInterval, errors)
+
+	<-ctx.Done()
+	err = closer.Shutdown()
+
+	wg.Wait()
+
 	log.Fatal(err)
 
 }
