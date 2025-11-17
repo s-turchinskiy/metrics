@@ -75,6 +75,7 @@ func main() {
 		10*time.Second,
 		settings.Settings.RSAPrivateKey,
 		settings.Settings.HashKey,
+		settings.Settings.TrustedSubnetTyped,
 	)
 	closer.Add(httpServer.FuncShutdown(logger.Log))
 	go func() {

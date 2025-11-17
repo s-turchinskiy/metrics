@@ -8,8 +8,10 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/hash"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
 	rsamiddleware "github.com/s-turchinskiy/metrics/internal/server/middleware/rsa"
+	"github.com/s-turchinskiy/metrics/internal/server/middleware/trustedsubnet"
 	httpswagger "github.com/swaggo/http-swagger"
 	"golang.org/x/exp/slices"
+	"net"
 	"net/http"
 	"net/http/pprof"
 )
@@ -39,7 +41,7 @@ import (
 type filterType map[string]map[string][]string
 type middlewareType func(next http.Handler) http.Handler
 
-func Router(h *MetricsHandler, rsaPrivateKey *rsa.PrivateKey, hashKey string) chi.Router {
+func Router(h *MetricsHandler, rsaPrivateKey *rsa.PrivateKey, hashKey string, trustedSubnet *net.IPNet) chi.Router {
 
 	filter := make(map[string]map[string][]string, 1)
 	filterRSA := make(map[string][]string, 1)
@@ -49,6 +51,7 @@ func Router(h *MetricsHandler, rsaPrivateKey *rsa.PrivateKey, hashKey string) ch
 	router := chi.NewRouter()
 	router.Use(hash.HashWriteMiddleware(hashKey))
 	router.Use(hash.HashReadMiddleware(hashKey))
+	router.Use(trustedsubnet.TrustedSubnetMiddleware(trustedSubnet))
 	router.Use(filteringMiddleware(filter, "RSA", rsamiddleware.RSADecrypt(rsaPrivateKey)))
 	router.Use(gzip.GzipMiddleware)
 	router.Use(logger.Logger)

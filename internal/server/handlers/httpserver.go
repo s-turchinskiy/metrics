@@ -7,6 +7,7 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 	"go.uber.org/zap"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -21,11 +22,12 @@ func NewHTTPServer(
 	addr string, readTimeout,
 	writeTimeout time.Duration,
 	rsaPrivateKey *rsa.PrivateKey,
-	hashKey string) *HTTPServer {
+	hashKey string,
+	trustedSubnet *net.IPNet) *HTTPServer {
 
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      Router(handler, rsaPrivateKey, hashKey),
+		Handler:      Router(handler, rsaPrivateKey, hashKey, trustedSubnet),
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 	}

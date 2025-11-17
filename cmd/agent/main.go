@@ -73,6 +73,7 @@ func main() {
 		fmt.Sprintf("%s/update/", metricsHandler.ServerAddress),
 		httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
 		httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
+		httpresty.WithRealIP(cfg.LocalIP),
 	)
 	go func() {
 		defer wg.Done()

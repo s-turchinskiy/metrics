@@ -20,6 +20,7 @@ type ReportMetricsHTTPResty struct {
 	hashFunc     hashutil.HashFunc
 	hashKey      string
 	rsaPublicKey *rsa.PublicKey
+	realIP       string
 }
 
 type OptionHTTPResty func(*ReportMetricsHTTPResty)
@@ -52,6 +53,12 @@ func WithRsaPublicKey(rsaPublicKey *rsa.PublicKey) OptionHTTPResty {
 	}
 }
 
+func WithRealIP(ip string) OptionHTTPResty {
+	return func(r *ReportMetricsHTTPResty) {
+		r.realIP = ip
+	}
+}
+
 func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 
 	body, err := json.Marshal(metric)
@@ -69,6 +76,10 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 	request := r.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(body)
+
+	if r.realIP != "" {
+		request.SetHeader("X-Real-IP", r.realIP)
+	}
 
 	if r.hashKey != "" && r.hashFunc != nil {
 

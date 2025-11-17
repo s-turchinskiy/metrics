@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	configutils "github.com/s-turchinskiy/metrics/internal/utils/configutil"
+	"net"
 	"os"
 	"reflect"
 	"strconv"
@@ -43,9 +44,11 @@ type ProgramSettings struct {
 	HashKey                       string     `env:"KEY" yaml:"HASH_KEY" lc:"HashSHA256 ключ для обмена между агентом и сервером"`
 	RSAPrivateKeyPath             string     `env:"CRYPTO_KEY" yaml:"CRYPTO_KEY" lc:"Путь к приватному ключу RSA"`
 	EnableHTTPS                   bool       `env:"ENABLE_HTTPS" yaml:"ENABLE_HTTPS" lc:"Включить HTTPS"`
+	TrustedSubnet                 string     `env:"TRUSTED_SUBNET" yaml:"TRUSTED_SUBNET" lc:"Строковое представление бесклассовой адресации (CIDR)"`
 	RSAPrivateKey                 *rsa.PrivateKey
 	AsynchronousWritingDataToFile bool
 	Store                         Store
+	TrustedSubnetTyped            *net.IPNet
 }
 
 type SecretSettings struct {
@@ -199,6 +202,16 @@ func GetSettings() error {
 		}
 	}
 
+	if Settings.TrustedSubnet != "" {
+		_, Settings.TrustedSubnetTyped, err = net.ParseCIDR(Settings.TrustedSubnet)
+		if err != nil {
+			logger.Log.Infow("Invalid subnet configuration",
+				zap.String("subnet", Settings.TrustedSubnet),
+				zap.Error(err))
+			return err
+		}
+	}
+
 	logger.LogNoSugar.Info("Settings", zap.Inline(Settings)) //если Sugar, то выводит без имен
 	return nil
 }
@@ -214,6 +227,7 @@ func parseFlags() {
 	flag.StringVar(&Settings.HashKey, "k", "", "HashSHA256 key")
 	flag.StringVar(&Settings.RSAPrivateKeyPath, "crypto-key", "", "Путь до файла с приватным ключом")
 	flag.BoolVar(&Settings.EnableHTTPS, "s", Settings.EnableHTTPS, "Определяет включен ли HTTPS")
+	flag.StringVar(&Settings.TrustedSubnet, "t", Settings.TrustedSubnet, "Строковое представление бесклассовой адресации (CIDR)")
 	flag.Parse()
 
 }
