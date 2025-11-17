@@ -2,26 +2,22 @@ package main
 
 import (
 	"fmt"
-	"testing"
-	"time"
-
 	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
+	"testing"
+	"time"
 )
 
 func BenchmarkAll(b *testing.B) {
 
-	h := &services.MetricsHandler{
-		Storage: &repositories.MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
-		ServerAddress: "http://notfound",
+	storage := &repositories.MetricsStorage{
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
 	}
 
 	sender := httpresty.New(
-		fmt.Sprintf("%s/update/", h.ServerAddress),
+		fmt.Sprintf("%s/update/", "http://notfound"),
 	)
 
 	b.ResetTimer()
@@ -32,12 +28,12 @@ func BenchmarkAll(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		err = h.Storage.UpdateMetrics(metrics)
+		err = storage.UpdateMetrics(metrics)
 		if err != nil {
 			b.Fatal(err)
 		}
 
-		metricsStorage, err := h.Storage.GetMetrics()
+		metricsStorage, err := storage.GetMetrics()
 		if err != nil {
 			b.Fatal(err)
 		}

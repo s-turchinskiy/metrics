@@ -10,7 +10,6 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 
-	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 )
 
@@ -59,9 +58,9 @@ func WithRealIP(ip string) OptionHTTPResty {
 	}
 }
 
-func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
+func (r *ReportMetricsHTTPResty) Send(data any) error {
 
-	body, err := json.Marshal(metric)
+	body, err := json.Marshal(data)
 	if err != nil {
 		return errutil.WrapError(fmt.Errorf("error json marshal data"))
 	}
@@ -90,7 +89,7 @@ func (r *ReportMetricsHTTPResty) Send(metric models.Metrics) error {
 	resp, err := request.Post(r.url)
 
 	if err != nil {
-		sendmetric.HandlerErrors(err, metric, r.url)
+		sendmetric.HandlerErrors(err, data, r.url)
 		return err
 	}
 

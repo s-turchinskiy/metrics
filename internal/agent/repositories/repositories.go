@@ -8,6 +8,11 @@ import (
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 )
 
+type MetricsRepositorier interface {
+	UpdateMetrics(map[string]float64) error
+	GetMetrics() ([]models.Metrics, error)
+}
+
 type MetricsStorage struct {
 	Gauge   map[string]float64
 	Counter map[string]int64

@@ -4,6 +4,9 @@ package services
 import (
 	"context"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/agent/reporter"
+	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
+	"golang.org/x/sync/errgroup"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -13,7 +16,6 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	"github.com/s-turchinskiy/metrics/internal/agent/models"
 )
 
 var (
@@ -22,41 +24,65 @@ var (
 		"Mallocs", "NextGC", "NumForcedGC", "NumGC", "OtherSys", "PauseTotalNs", "StackInuse", "StackSys", "Sys", "TotalAlloc"}
 )
 
-type MetricsUpdaterReporting interface {
-	UpdateMetrics(map[string]float64) error
-	GetMetrics() ([]models.Metrics, error)
+type Service struct {
+	storage       repositories.MetricsRepositorier
+	reporter      reporter.Reporter
+	serverAddress string
+	pollInterval  int
 }
 
-type MetricsHandler struct {
-	Storage       MetricsUpdaterReporting
-	ServerAddress string
+func New(storage *repositories.MetricsStorage, reporter reporter.Reporter, addr string, pollInterval int) *Service {
+	return &Service{
+		storage:       storage,
+		reporter:      reporter,
+		serverAddress: addr,
+		pollInterval:  pollInterval,
+	}
+}
+
+func (s *Service) Run(ctx context.Context) error {
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return s.UpdateMetrics(ctx)
+	})
+
+	g.Go(func() error {
+		return s.reporter.ReportMetrics(ctx)
+	})
+
+	/*g.Go(func() error {
+		return s.reporter.ReportMetricsBatch(ctx)
+	})*/
+
+	return g.Wait()
 }
 
 // UpdateMetrics Обновление метрик в хранилище
-func UpdateMetrics(ctx context.Context, h *MetricsHandler, pollInterval int, errors chan error) {
+func (s *Service) UpdateMetrics(ctx context.Context) error {
 
-	ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(s.pollInterval) * time.Second)
 	for range ticker.C {
 
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		default:
 			metrics, err := GetMetrics(1 * time.Second)
 			if err != nil {
 				logger.Log.Infoln("getMetrics error", err.Error())
 			}
 
-			err = h.Storage.UpdateMetrics(metrics)
+			err = s.storage.UpdateMetrics(metrics)
 			if err != nil {
 				logger.Log.Infoln("storage update metrics error", err.Error())
-				errors <- err
-				return
+				return err
 			}
 		}
 
 	}
 
+	return nil
 }
 
 // GetMetrics Получение метрик из операционной системы
