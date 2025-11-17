@@ -86,7 +86,7 @@ func main() {
 		if err != nil {
 
 			logger.Log.Errorw("Server startup error", "error", err.Error())
-			return
+			stop()
 		}
 	}()
 
@@ -104,7 +104,7 @@ func main() {
 	err = closer.Shutdown()
 
 	wg.Wait()
-	
+
 	if err != nil {
 		log.Fatal(err)
 	}
