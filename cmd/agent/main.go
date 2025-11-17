@@ -71,9 +71,8 @@ func main() {
 
 	sender := httpresty.New(
 		fmt.Sprintf("%s/update/", metricsHandler.ServerAddress),
-		hashutil.СomputeHexadecimalSha256Hash,
-		cfg.HashKey,
-		cfg.RSAPublicKey,
+		httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
+		httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
 	)
 	go func() {
 		defer wg.Done()

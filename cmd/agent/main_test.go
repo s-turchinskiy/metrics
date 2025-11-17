@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
 	"testing"
 	"time"
 
@@ -23,9 +22,6 @@ func BenchmarkAll(b *testing.B) {
 
 	sender := httpresty.New(
 		fmt.Sprintf("%s/update/", h.ServerAddress),
-		hashutil.СomputeHexadecimalSha256Hash,
-		"",
-		nil,
 	)
 
 	b.ResetTimer()

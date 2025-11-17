@@ -22,14 +22,33 @@ type ReportMetricsHTTPResty struct {
 	rsaPublicKey *rsa.PublicKey
 }
 
-func New(url string, hashFunc hashutil.HashFunc, hashKey string, rsaPublicKey *rsa.PublicKey) *ReportMetricsHTTPResty {
+type OptionHTTPResty func(*ReportMetricsHTTPResty)
 
-	return &ReportMetricsHTTPResty{
-		client:       resty.New(),
-		url:          url,
-		hashFunc:     hashFunc,
-		hashKey:      hashKey,
-		rsaPublicKey: rsaPublicKey,
+func New(url string, opts ...OptionHTTPResty) *ReportMetricsHTTPResty {
+
+	r := &ReportMetricsHTTPResty{
+		client: resty.New(),
+		url:    url,
+	}
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	return r
+
+}
+
+func WithHash(hashKey string, hashFunc hashutil.HashFunc) OptionHTTPResty {
+	return func(r *ReportMetricsHTTPResty) {
+		r.hashKey = hashKey
+		r.hashFunc = hashFunc
+	}
+}
+
+func WithRsaPublicKey(rsaPublicKey *rsa.PublicKey) OptionHTTPResty {
+	return func(r *ReportMetricsHTTPResty) {
+		r.rsaPublicKey = rsaPublicKey
 	}
 }
 
