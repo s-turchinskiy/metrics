@@ -4,7 +4,7 @@ package closerutil
 import (
 	"context"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/reflectutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/reflectutil"
 	"log"
 	"strings"
 	"sync"

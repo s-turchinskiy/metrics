@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
-	"github.com/s-turchinskiy/metrics/internal/common/errutil"
-	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
-	"github.com/s-turchinskiy/metrics/internal/common/rsautil"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"

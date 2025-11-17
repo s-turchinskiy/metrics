@@ -6,7 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	configutils "github.com/s-turchinskiy/metrics/internal/common/configutil"
+	configutils "github.com/s-turchinskiy/metrics/internal/utils/configutil"
 	"os"
 	"reflect"
 	"strconv"
@@ -16,9 +16,9 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/s-turchinskiy/metrics/internal/common/fileutil"
-	rsautil "github.com/s-turchinskiy/metrics/internal/common/rsautil"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
+	"github.com/s-turchinskiy/metrics/internal/utils/fileutil"
+	rsautil "github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 )
 
 const (

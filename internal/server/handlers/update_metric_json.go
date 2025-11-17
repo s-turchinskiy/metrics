@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/errutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
 	"io"
 	"net/http"
 

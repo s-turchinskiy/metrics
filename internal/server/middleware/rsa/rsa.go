@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/errutil"
-	"github.com/s-turchinskiy/metrics/internal/common/rsautil"
 	"github.com/s-turchinskiy/metrics/internal/server/middleware/logger"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 	"io"
 	"net/http"
 )

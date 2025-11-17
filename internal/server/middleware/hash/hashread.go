@@ -6,8 +6,8 @@ import (
 	"crypto/hmac"
 	"encoding/hex"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/errutil"
-	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"io"
 	"net/http"
 

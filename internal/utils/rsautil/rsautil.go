@@ -10,7 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/errutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
 	"math/big"
 	"net"
 	"os"

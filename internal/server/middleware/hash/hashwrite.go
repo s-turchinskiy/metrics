@@ -2,7 +2,7 @@ package hash
 
 import (
 	"bytes"
-	"github.com/s-turchinskiy/metrics/internal/common/hashutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"net/http"
 )
 

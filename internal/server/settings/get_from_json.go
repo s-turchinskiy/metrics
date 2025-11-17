@@ -1,8 +1,8 @@
 package settings
 
 import (
-	configutils "github.com/s-turchinskiy/metrics/internal/common/configutil"
-	timeutils "github.com/s-turchinskiy/metrics/internal/common/timeutil"
+	configutils "github.com/s-turchinskiy/metrics/internal/utils/configutil"
+	timeutils "github.com/s-turchinskiy/metrics/internal/utils/timeutil"
 )
 
 type JSONConfig struct {

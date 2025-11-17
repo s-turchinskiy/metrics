@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	closerutil "github.com/s-turchinskiy/metrics/internal/common/closerutil"
 	"github.com/s-turchinskiy/metrics/internal/server/repository"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/memcashed"
 	"github.com/s-turchinskiy/metrics/internal/server/repository/postgresql"
+	closerutil "github.com/s-turchinskiy/metrics/internal/utils/closerutil"
 	"log"
 	_ "net/http/pprof"
 	"os/signal"

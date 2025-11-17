@@ -7,7 +7,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/common/errutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
 	"go.uber.org/zap"
 	"os"
 	"strings"

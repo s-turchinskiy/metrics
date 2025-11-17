@@ -5,7 +5,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	"github.com/s-turchinskiy/metrics/internal/common/rsautil"
+	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
