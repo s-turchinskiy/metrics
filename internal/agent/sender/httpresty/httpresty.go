@@ -2,15 +2,16 @@
 package httpresty
 
 import (
+	"context"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/s-turchinskiy/metrics/internal/agent/models"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender"
 	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
-
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 )
 
 type ReportMetricsHTTPResty struct {
@@ -39,6 +40,10 @@ func New(url string, opts ...OptionHTTPResty) *ReportMetricsHTTPResty {
 
 }
 
+func (r *ReportMetricsHTTPResty) Close(ctx context.Context) error {
+	return nil
+}
+
 func WithHash(hashKey string, hashFunc hashutil.HashFunc) OptionHTTPResty {
 	return func(r *ReportMetricsHTTPResty) {
 		r.hashKey = hashKey
@@ -58,7 +63,21 @@ func WithRealIP(ip string) OptionHTTPResty {
 	}
 }
 
-func (r *ReportMetricsHTTPResty) Send(data any) error {
+func (r *ReportMetricsHTTPResty) Send(ctx context.Context, metric models.Metrics) error {
+
+	return r.sendAnyData(ctx, metric)
+
+}
+
+func (r *ReportMetricsHTTPResty) SendBatch(ctx context.Context, metrics []models.Metrics) error {
+	return r.sendAnyData(ctx, metrics)
+}
+
+func (r *ReportMetricsHTTPResty) HandlerErrors(ctx context.Context, err error, data any, url string) {
+	sender.HTTPHandlerErrors(err, data, url)
+}
+
+func (r *ReportMetricsHTTPResty) sendAnyData(ctx context.Context, data any) error {
 
 	body, err := json.Marshal(data)
 	if err != nil {
@@ -89,11 +108,11 @@ func (r *ReportMetricsHTTPResty) Send(data any) error {
 	resp, err := request.Post(r.url)
 
 	if err != nil {
-		sendmetric.HandlerErrors(err, data, r.url)
+		r.HandlerErrors(ctx, err, data, r.url)
 		return err
 	}
 
-	if err := sendmetric.CheckResponseStatus(
+	if err := sender.CheckResponseStatus(
 		resp.StatusCode(),
 		resp.Body(),
 		r.url,

@@ -1,4 +1,4 @@
-package sendmetric
+package sender
 
 import "testing"
 

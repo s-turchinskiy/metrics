@@ -4,7 +4,7 @@ package reporter
 import (
 	"context"
 	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender"
 	"time"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
@@ -20,12 +20,12 @@ type Reporter interface {
 
 type Report struct {
 	storage        repositories.MetricsRepositorier
-	sender         sendmetric.MetricSender
+	sender         sender.MetricSender
 	reportInterval int
 	rateLimit      int
 }
 
-func New(storage *repositories.MetricsStorage, sender sendmetric.MetricSender, reportInterval, rateLimit int) *Report {
+func New(storage *repositories.MetricsStorage, sender sender.MetricSender, reportInterval, rateLimit int) *Report {
 	return &Report{
 		storage:        storage,
 		sender:         sender,

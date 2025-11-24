@@ -49,6 +49,7 @@ type ProgramSettings struct {
 	AsynchronousWritingDataToFile bool
 	Store                         Store
 	TrustedSubnetTyped            *net.IPNet
+	PortGRPC                      string
 }
 
 type SecretSettings struct {
@@ -132,6 +133,7 @@ func GetSettings() error {
 		FileStoragePath: "store.txt",
 		Restore:         true,
 		Database:        database{Host: "localhost", DBName: "metrics", Login: "metrics"},
+		PortGRPC:        "3032",
 	}
 
 	configFilePath := configutils.GetConfigFilePath()

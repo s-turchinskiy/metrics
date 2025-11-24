@@ -29,13 +29,23 @@ type ProgramConfig struct {
 	rsaPublicKeyPath string
 	RSAPublicKey     *rsa.PublicKey
 	LocalIP          string
+	SendindVia       SendindVia
 }
+
+type SendindVia int
+
+const (
+	HTTP SendindVia = iota
+	GRPC
+)
 
 func ParseFlags() (*ProgramConfig, error) {
 
-	cfg := ProgramConfig{LocalIP: netutil.LocalIP()}
-
-	cfg.Addr = &NetAddress{Host: "localhost", Port: 8080}
+	cfg := ProgramConfig{
+		LocalIP:    netutil.LocalIP(),
+		SendindVia: HTTP,
+		Addr:       &NetAddress{Host: "localhost", Port: 8080},
+	}
 
 	configFilePath := configutil.GetConfigFilePath()
 	if configFilePath != "" {
@@ -92,6 +102,14 @@ func ParseFlags() (*ProgramConfig, error) {
 
 	if value := os.Getenv("CRYPTO_KEY"); value != "" {
 		cfg.rsaPublicKeyPath = value
+	}
+
+	if valueStr := os.Getenv("SENDING_VIA"); valueStr != "" {
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return nil, err
+		}
+		cfg.SendindVia = SendindVia(value)
 	}
 
 	if cfg.rsaPublicKeyPath != "" {

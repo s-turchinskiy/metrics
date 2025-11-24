@@ -18,7 +18,7 @@ func (r *Report) ReportMetricsBatch(ctx context.Context) error {
 			return err
 		}
 
-		err = r.sender.Send(metrics)
+		err = r.sender.SendBatch(ctx, metrics)
 		if err != nil {
 
 			logger.Log.Infow("error sending request",

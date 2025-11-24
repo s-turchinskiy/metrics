@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender/grpcsender"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/utils/closerutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"log"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -55,12 +59,28 @@ func main() {
 		Counter: make(map[string]int64),
 	}
 
-	sender := httpresty.New(
-		fmt.Sprintf("%s/update/", "http://"+cfg.Addr.String()),
-		httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
-		httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
-		httpresty.WithRealIP(cfg.LocalIP),
-	)
+	var sender sender.MetricSender
+	switch cfg.SendindVia {
+	case config.HTTP:
+		sender = httpresty.New(
+			fmt.Sprintf("%s/update/", "http://"+cfg.Addr.String()),
+			httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
+			httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
+			httpresty.WithRealIP(cfg.LocalIP),
+		)
+	case config.GRPC:
+		sender = grpcsender.New(
+			strconv.Itoa(cfg.Addr.Port),
+			grpcsender.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
+			grpcsender.WithRsaPublicKey(cfg.RSAPublicKey),
+			grpcsender.WithRealIP(cfg.LocalIP),
+		)
+
+		closer.Add(sender.Close)
+	default:
+		err = errutil.WrapError(fmt.Errorf("cfg.SendindVia is unklown, value = %d", cfg.SendindVia))
+		log.Fatal(err)
+	}
 
 	report := reporter.New(storage, sender, cfg.ReportInterval, cfg.RateLimit)
 	service := services.New(storage, report, cfg.Addr.String(), cfg.PollInterval)

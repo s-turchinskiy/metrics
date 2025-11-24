@@ -1,19 +1,24 @@
-// Package sendmetric Интерфейс отправки метрики и 2 общих метода
-package sendmetric
+// Package sender Интерфейс отправки метрики и 2 общих метода
+package sender
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"net/http"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 )
 
 type MetricSender interface {
-	Send(any) error
+	Send(context.Context, models.Metrics) error
+	SendBatch(context.Context, []models.Metrics) error
+	HandlerErrors(ctx context.Context, err error, data any, url string)
+	Close(ctx context.Context) error
 }
 
-func HandlerErrors(err error, data any, url string) {
+func HTTPHandlerErrors(err error, data any, url string) {
 
 	if err != nil {
 

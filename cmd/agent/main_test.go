@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 	"testing"
 	"time"
 )
@@ -39,7 +40,7 @@ func BenchmarkAll(b *testing.B) {
 		}
 
 		for _, metric := range metricsStorage {
-			sender.Send(metric)
+			sender.Send(context.Background(), metric)
 		}
 	}
 
