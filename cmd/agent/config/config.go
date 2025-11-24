@@ -29,13 +29,14 @@ type ProgramConfig struct {
 	rsaPublicKeyPath string
 	RSAPublicKey     *rsa.PublicKey
 	LocalIP          string
-	SendindVia       SendindVia
+	SendingVia       SendingVia
+	URL              string
 }
 
-type SendindVia int
+type SendingVia int
 
 const (
-	HTTP SendindVia = iota
+	HTTP SendingVia = iota
 	GRPC
 )
 
@@ -43,7 +44,7 @@ func ParseFlags() (*ProgramConfig, error) {
 
 	cfg := ProgramConfig{
 		LocalIP:    netutil.LocalIP(),
-		SendindVia: HTTP,
+		SendingVia: HTTP,
 		Addr:       &NetAddress{Host: "localhost", Port: 8080},
 	}
 
@@ -109,7 +110,7 @@ func ParseFlags() (*ProgramConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		cfg.SendindVia = SendindVia(value)
+		cfg.SendingVia = SendingVia(value)
 	}
 
 	if cfg.rsaPublicKeyPath != "" {
@@ -120,6 +121,8 @@ func ParseFlags() (*ProgramConfig, error) {
 			return nil, err
 		}
 	}
+
+	cfg.URL = fmt.Sprintf("http://%s/update/", cfg.Addr.String())
 
 	return &cfg, nil
 }

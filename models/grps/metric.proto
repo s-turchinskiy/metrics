@@ -13,11 +13,11 @@ message Metric {
   MetricType mType = 2;       // параметр, принимающий значение gauge или counter
   sint64 delta = 3;           // значение метрики в случае передачи counter
   double Value = 4;           // значение метрики в случае передачи gauge
-  bytes Body = 5;
 }
 
 message AddMetricRequest {
   Metric metric = 1;
+  bytes Body = 2;
 }
 
 message AddMetricResponse {
@@ -26,6 +26,7 @@ message AddMetricResponse {
 
 message AddMetricsRequest {
   repeated Metric metrics = 1;
+  bytes Body = 2;
 }
 
 message AddMetricsResponse {

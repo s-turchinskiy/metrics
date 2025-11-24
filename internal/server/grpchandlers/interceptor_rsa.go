@@ -16,10 +16,15 @@ func (s *GRPCServer) RSADecryptInterceptor(ctx context.Context, req interface{},
 	}
 
 	var bodyBytes []byte
-	if info.FullMethod == "/protofile.Metrics/AddMetric" {
+
+	switch info.FullMethod {
+	case pathAddMetric:
 		typedReq := req.(*proto.AddMetricRequest)
-		bodyBytes = typedReq.Metric.Body
-	} else {
+		bodyBytes = typedReq.Body
+	case pathAddMetrics:
+		typedReq := req.(*proto.AddMetricsRequest)
+		bodyBytes = typedReq.Body
+	default:
 		return handler(ctx, req)
 	}
 
@@ -32,10 +37,17 @@ func (s *GRPCServer) RSADecryptInterceptor(ctx context.Context, req interface{},
 		return nil, status.Error(codes.InvalidArgument, "cannot decrypt body")
 	}
 
-	if info.FullMethod == "/protofile.Metrics/AddMetric" {
+	switch info.FullMethod {
+	case pathAddMetric:
 		typedReq := req.(*proto.AddMetricRequest)
-		typedReq.Metric.Body = bodyBytes
+		typedReq.Body = bodyBytes
 		req = typedReq
+	case pathAddMetrics:
+		typedReq := req.(*proto.AddMetricsRequest)
+		bodyBytes = typedReq.Body
+		req = typedReq
+	default:
+		return handler(ctx, req)
 	}
 
 	return handler(ctx, req)

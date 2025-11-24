@@ -11,6 +11,11 @@ import (
 	"net"
 )
 
+const (
+	pathAddMetric  = "/protofile.Metrics/AddMetric"
+	pathAddMetrics = "/protofile.Metrics/AddMetrics"
+)
+
 type GRPCServer struct {
 	proto.UnimplementedMetricsServer
 	service       service.MetricsUpdater

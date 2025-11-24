@@ -73,7 +73,6 @@ type Metric struct {
 	MType         Metric_MetricType      `protobuf:"varint,2,opt,name=mType,proto3,enum=protofile.Metric_MetricType" json:"mType,omitempty"` // параметр, принимающий значение gauge или counter
 	Delta         int64                  `protobuf:"zigzag64,3,opt,name=delta,proto3" json:"delta,omitempty"`                                // значение метрики в случае передачи counter
 	Value         float64                `protobuf:"fixed64,4,opt,name=Value,proto3" json:"Value,omitempty"`                                 // значение метрики в случае передачи gauge
-	Body          []byte                 `protobuf:"bytes,5,opt,name=Body,proto3" json:"Body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -136,16 +135,10 @@ func (x *Metric) GetValue() float64 {
 	return 0
 }
 
-func (x *Metric) GetBody() []byte {
-	if x != nil {
-		return x.Body
-	}
-	return nil
-}
-
 type AddMetricRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Metric        *Metric                `protobuf:"bytes,1,opt,name=metric,proto3" json:"metric,omitempty"`
+	Body          []byte                 `protobuf:"bytes,2,opt,name=Body,proto3" json:"Body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -183,6 +176,13 @@ func (*AddMetricRequest) Descriptor() ([]byte, []int) {
 func (x *AddMetricRequest) GetMetric() *Metric {
 	if x != nil {
 		return x.Metric
+	}
+	return nil
+}
+
+func (x *AddMetricRequest) GetBody() []byte {
+	if x != nil {
+		return x.Body
 	}
 	return nil
 }
@@ -234,6 +234,7 @@ func (x *AddMetricResponse) GetMetric() *Metric {
 type AddMetricsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Metrics       []*Metric              `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	Body          []byte                 `protobuf:"bytes,2,opt,name=Body,proto3" json:"Body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -271,6 +272,13 @@ func (*AddMetricsRequest) Descriptor() ([]byte, []int) {
 func (x *AddMetricsRequest) GetMetrics() []*Metric {
 	if x != nil {
 		return x.Metrics
+	}
+	return nil
+}
+
+func (x *AddMetricsRequest) GetBody() []byte {
+	if x != nil {
+		return x.Body
 	}
 	return nil
 }
@@ -323,23 +331,24 @@ var File_models_grps_metric_proto protoreflect.FileDescriptor
 
 const file_models_grps_metric_proto_rawDesc = "" +
 	"\n" +
-	"\x18models/grps/metric.proto\x12\tprotofile\"\xb2\x01\n" +
+	"\x18models/grps/metric.proto\x12\tprotofile\"\x9e\x01\n" +
 	"\x06Metric\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\x05mType\x18\x02 \x01(\x0e2\x1c.protofile.Metric.MetricTypeR\x05mType\x12\x14\n" +
 	"\x05delta\x18\x03 \x01(\x12R\x05delta\x12\x14\n" +
-	"\x05Value\x18\x04 \x01(\x01R\x05Value\x12\x12\n" +
-	"\x04Body\x18\x05 \x01(\fR\x04Body\"$\n" +
+	"\x05Value\x18\x04 \x01(\x01R\x05Value\"$\n" +
 	"\n" +
 	"MetricType\x12\t\n" +
 	"\x05GAUGE\x10\x00\x12\v\n" +
-	"\aCOUNTER\x10\x01\"=\n" +
+	"\aCOUNTER\x10\x01\"Q\n" +
 	"\x10AddMetricRequest\x12)\n" +
-	"\x06metric\x18\x01 \x01(\v2\x11.protofile.MetricR\x06metric\">\n" +
+	"\x06metric\x18\x01 \x01(\v2\x11.protofile.MetricR\x06metric\x12\x12\n" +
+	"\x04Body\x18\x02 \x01(\fR\x04Body\">\n" +
 	"\x11AddMetricResponse\x12)\n" +
-	"\x06metric\x18\x01 \x01(\v2\x11.protofile.MetricR\x06metric\"@\n" +
+	"\x06metric\x18\x01 \x01(\v2\x11.protofile.MetricR\x06metric\"T\n" +
 	"\x11AddMetricsRequest\x12+\n" +
-	"\ametrics\x18\x01 \x03(\v2\x11.protofile.MetricR\ametrics\"*\n" +
+	"\ametrics\x18\x01 \x03(\v2\x11.protofile.MetricR\ametrics\x12\x12\n" +
+	"\x04Body\x18\x02 \x01(\fR\x04Body\"*\n" +
 	"\x12AddMetricsResponse\x12\x14\n" +
 	"\x05count\x18\x01 \x01(\x03R\x05count2\xa0\x01\n" +
 	"\aMetrics\x12F\n" +

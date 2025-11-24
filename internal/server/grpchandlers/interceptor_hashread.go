@@ -35,10 +35,14 @@ func (s *GRPCServer) HashReadInterceptor(ctx context.Context, req interface{}, i
 	}
 
 	var bodyBytes []byte
-	if info.FullMethod == "/protofile.Metrics/AddMetric" {
+	switch info.FullMethod {
+	case pathAddMetric:
 		typedReq := req.(*proto.AddMetricRequest)
-		bodyBytes = typedReq.Metric.Body
-	} else {
+		bodyBytes = typedReq.Body
+	case pathAddMetrics:
+		typedReq := req.(*proto.AddMetricsRequest)
+		bodyBytes = typedReq.Body
+	default:
 		return handler(ctx, req)
 	}
 

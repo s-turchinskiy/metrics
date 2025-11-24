@@ -51,9 +51,9 @@ func (s *Service) Run(ctx context.Context) error {
 		return s.reporter.ReportMetrics(ctx)
 	})
 
-	/*g.Go(func() error {
+	g.Go(func() error {
 		return s.reporter.ReportMetricsBatch(ctx)
-	})*/
+	})
 
 	return g.Wait()
 }

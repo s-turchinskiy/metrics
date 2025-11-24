@@ -98,9 +98,9 @@ func WithRealIP(ip string) OptionGRPC {
 
 func (r *ReportMetricsFRPC) Send(ctx context.Context, metric models.Metrics) error {
 
-	body, err := json.Marshal(metric)
+	body, headers, err := r.getBodyAndHeaders(metric)
 	if err != nil {
-		return errutil.WrapError(fmt.Errorf("error json marshal data"))
+		return errutil.WrapError(err)
 	}
 
 	if metric.Delta == nil {
@@ -115,34 +115,15 @@ func (r *ReportMetricsFRPC) Send(ctx context.Context, metric models.Metrics) err
 		Id:    metric.ID,
 		Delta: *metric.Delta,
 		Value: *metric.Value,
-		Body:  body,
 	}
 	protoMetric.SetMTypeFromString(metric.MType)
-
-	headers := map[string]string{}
-
-	if r.rsaPublicKey != nil {
-		protoMetric.Body, err = rsautil.Encrypt(r.rsaPublicKey, protoMetric.Body)
-		if err != nil {
-			return err
-		}
-	}
-
-	if r.realIP != "" {
-		headers["X-Real-IP"] = r.realIP
-	}
-
-	if r.hashKey != "" && r.hashFunc != nil {
-
-		hash := r.hashFunc(r.hashKey, body)
-		headers["HashSHA256"] = hash
-	}
 
 	md := metadata.New(headers)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	_, err = r.client.AddMetric(ctx, &proto.AddMetricRequest{
 		Metric: protoMetric,
+		Body:   body,
 	})
 
 	if err != nil {
@@ -155,6 +136,73 @@ func (r *ReportMetricsFRPC) Send(ctx context.Context, metric models.Metrics) err
 }
 
 func (r *ReportMetricsFRPC) SendBatch(ctx context.Context, metrics []models.Metrics) error {
-	//TODO implement me
-	panic("implement me")
+
+	body, headers, err := r.getBodyAndHeaders(metrics)
+	if err != nil {
+		return errutil.WrapError(err)
+	}
+
+	for i := range metrics {
+		if metrics[i].Delta == nil {
+			metrics[i].Delta = new(int64)
+		}
+
+		if metrics[i].Value == nil {
+			metrics[i].Value = new(float64)
+		}
+	}
+
+	protoMetrics := make([]*proto.Metric, len(metrics))
+	for i, metric := range metrics {
+		protoMetrics[i] = &proto.Metric{
+			Id:    metric.ID,
+			Delta: *metric.Delta,
+			Value: *metric.Value,
+		}
+		protoMetrics[i].SetMTypeFromString(metric.MType)
+	}
+
+	md := metadata.New(headers)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	_, err = r.client.AddMetricBatch(ctx, &proto.AddMetricsRequest{
+		Metrics: protoMetrics,
+		Body:    body,
+	})
+
+	if err != nil {
+		r.HandlerErrors(ctx, err, metrics, "gRPC AddMetrics")
+		return err
+	}
+
+	return nil
+
+}
+
+func (r *ReportMetricsFRPC) getBodyAndHeaders(data any) (body []byte, headers map[string]string, err error) {
+
+	headers = make(map[string]string)
+	body, err = json.Marshal(data)
+	if err != nil {
+		return nil, nil, errutil.WrapError(fmt.Errorf("error json marshal data"))
+	}
+
+	if r.realIP != "" {
+		headers["X-Real-IP"] = r.realIP
+	}
+
+	if r.hashKey != "" && r.hashFunc != nil {
+
+		hash := r.hashFunc(r.hashKey, body)
+		headers["HashSHA256"] = hash
+	}
+
+	if r.rsaPublicKey != nil {
+		body, err = rsautil.Encrypt(r.rsaPublicKey, body)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return body, headers, nil
 }

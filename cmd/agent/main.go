@@ -60,10 +60,10 @@ func main() {
 	}
 
 	var sender sender.MetricSender
-	switch cfg.SendindVia {
+	switch cfg.SendingVia {
 	case config.HTTP:
 		sender = httpresty.New(
-			fmt.Sprintf("%s/update/", "http://"+cfg.Addr.String()),
+			cfg.URL,
 			httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
 			httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
 			httpresty.WithRealIP(cfg.LocalIP),
@@ -78,7 +78,7 @@ func main() {
 
 		closer.Add(sender.Close)
 	default:
-		err = errutil.WrapError(fmt.Errorf("cfg.SendindVia is unklown, value = %d", cfg.SendindVia))
+		err = errutil.WrapError(fmt.Errorf("cfg.SendingVia is unklown, value = %d", cfg.SendingVia))
 		log.Fatal(err)
 	}
 
