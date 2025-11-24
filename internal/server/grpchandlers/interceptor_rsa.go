@@ -44,7 +44,7 @@ func (s *GRPCServer) RSADecryptInterceptor(ctx context.Context, req interface{},
 		req = typedReq
 	case pathAddMetrics:
 		typedReq := req.(*proto.AddMetricsRequest)
-		bodyBytes = typedReq.Body
+		typedReq.Body = bodyBytes
 		req = typedReq
 	default:
 		return handler(ctx, req)
