@@ -45,7 +45,7 @@ func main() {
 		logger.Log.Debugw("Error loading .env file", "error", err.Error())
 	}
 
-	cfg, err := config.ParseFlags()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}

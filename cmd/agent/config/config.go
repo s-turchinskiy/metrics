@@ -40,7 +40,7 @@ const (
 	GRPC
 )
 
-func ParseFlags() (*ProgramConfig, error) {
+func LoadConfig() (*ProgramConfig, error) {
 
 	cfg := ProgramConfig{
 		LocalIP:    netutil.LocalIP(),

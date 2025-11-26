@@ -156,7 +156,7 @@ func GetSettings() error {
 	}
 	Settings.Database.Password = secretSettings.DBPassword
 
-	LoadConfig()
+	ParseFlags()
 
 	err = env.ParseWithOptions(&Settings, env.Options{
 		FuncMap: map[reflect.Type]env.ParserFunc{
@@ -218,7 +218,7 @@ func GetSettings() error {
 	return nil
 }
 
-func LoadConfig() {
+func ParseFlags() {
 
 	flag.Var(&Settings.Address, "a", "Net address host:port")
 	//flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
