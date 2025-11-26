@@ -1,4 +1,4 @@
-// Package hashutil Общие процедуры взаимодейсивя с хэшем
+// Package hashutil Общие процедуры взаимодействия с хэшем
 package hashutil
 
 import (

@@ -12,6 +12,7 @@ type JSONConfig struct {
 	StoreFile     string `json:"store_file,omitempty"`
 	DatabaseDSN   string `json:"database_dsn,omitempty"`
 	CryptoKey     string `json:"crypto_key,omitempty"`
+	TrustedSubnet string `json:"trusted_subnet,omitempty"`
 }
 
 func loadConfigFromJSON(config *ProgramSettings, filePath string) error {
@@ -44,6 +45,10 @@ func loadConfigFromJSON(config *ProgramSettings, filePath string) error {
 
 	if jsonConfig.CryptoKey != "" {
 		config.RSAPrivateKeyPath = jsonConfig.CryptoKey
+	}
+
+	if jsonConfig.TrustedSubnet != "" {
+		config.TrustedSubnet = jsonConfig.TrustedSubnet
 	}
 
 	if jsonConfig.StoreInterval != "" {

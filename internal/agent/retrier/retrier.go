@@ -2,16 +2,17 @@
 package retrier
 
 import (
+	"context"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"strings"
 	"time"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
-	"github.com/s-turchinskiy/metrics/internal/agent/models"
 )
 
 type ReportMetricRetrier interface {
-	SendWithRetries(models.Metrics, func(models.Metrics) error) error
+	SendWithRetries(ctx context.Context, data models.Metrics, send func(ctx context.Context, data models.Metrics) error) error
 }
 
 type ReportMetricRetry1 struct {
@@ -25,18 +26,18 @@ var retryIntervals = []time.Duration{
 	5 * time.Second,
 }
 
-func (r ReportMetricRetry1) SendWithRetries(metric models.Metrics, f func(models.Metrics) error) error {
+func (r ReportMetricRetry1) SendWithRetries(ctx context.Context, data models.Metrics, f func(ctx context.Context, metrics models.Metrics) error) error {
 
 	var err error
 	for i, delay := range retryIntervals {
 		time.Sleep(delay)
-		err = f(metric)
+		err = f(ctx, data)
 
 		if !itIsErrorConnectionRefused(err) {
 			return err
 		}
 
-		logger.Log.Infow(fmt.Sprintf("reportMetric attempt %d, server is not responding", i+1), "data", metric)
+		logger.Log.Infow(fmt.Sprintf("reportMetric attempt %d, server is not responding", i+1), "data", data)
 
 	}
 

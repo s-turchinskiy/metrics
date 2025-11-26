@@ -3,11 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
+	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender/grpcsender"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender/httpresty"
 	"github.com/s-turchinskiy/metrics/internal/utils/closerutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"log"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -17,7 +22,6 @@ import (
 	"github.com/s-turchinskiy/metrics/cmd/agent/config"
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/reporter"
-	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
 	"github.com/s-turchinskiy/metrics/internal/agent/services"
 )
 
@@ -41,7 +45,7 @@ func main() {
 		logger.Log.Debugw("Error loading .env file", "error", err.Error())
 	}
 
-	cfg, err := config.ParseFlags()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,50 +54,58 @@ func main() {
 	defer stop()
 	closer := closerutil.New(20 * time.Second)
 
-	metricsHandler := &services.MetricsHandler{
-		Storage: &repositories.MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
-		ServerAddress: "http://" + cfg.Addr.String(),
+	storage := &repositories.MetricsStorage{
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
 	}
 
-	errorsCh := make(chan error)
-	go closer.ProcessingErrorsChannel(errorsCh)
+	var sender sender.MetricSender
+	switch cfg.SendingVia {
+	case config.HTTP:
+		sender = httpresty.New(
+			cfg.URL,
+			httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
+			httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
+			httpresty.WithRealIP(cfg.LocalIP),
+		)
+	case config.GRPC:
+		sender = grpcsender.New(
+			strconv.Itoa(cfg.Addr.Port),
+			grpcsender.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
+			grpcsender.WithRsaPublicKey(cfg.RSAPublicKey),
+			grpcsender.WithRealIP(cfg.LocalIP),
+		)
+
+		closer.Add(sender.Close)
+	default:
+		err = errutil.WrapError(fmt.Errorf("cfg.SendingVia is unklown, value = %d", cfg.SendingVia))
+		log.Fatal(err)
+	}
+
+	report := reporter.New(storage, sender, cfg.ReportInterval, cfg.RateLimit)
+	service := services.New(storage, report, cfg.Addr.String(), cfg.PollInterval)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		go services.UpdateMetrics(ctx, metricsHandler, cfg.PollInterval, errorsCh)
+		err = service.Run(ctx)
+		if err != nil {
+			logger.Log.Info(err)
+			//closer.ProcessingErrors(err)
+			stop()
+		}
 	}()
-
-	sender := httpresty.New(
-		fmt.Sprintf("%s/update/", metricsHandler.ServerAddress),
-		httpresty.WithHash(cfg.HashKey, hashutil.СomputeHexadecimalSha256Hash),
-		httpresty.WithRsaPublicKey(cfg.RSAPublicKey),
-	)
-	go func() {
-		defer wg.Done()
-
-		reporter.ReportMetrics(
-			ctx,
-			metricsHandler,
-			sender,
-			cfg.ReportInterval,
-			cfg.RateLimit,
-			errorsCh)
-	}()
-
-	//go reporter.ReportMetricsBatch(metricsHandler, cfg.ReportInterval, errors)
 
 	<-ctx.Done()
 	err = closer.Shutdown()
 
 	wg.Wait()
 
-	log.Fatal(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 }
 

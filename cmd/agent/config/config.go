@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/s-turchinskiy/metrics/internal/utils/configutil"
+	"github.com/s-turchinskiy/metrics/internal/utils/netutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/rsautil"
 	"os"
 	"runtime"
@@ -27,13 +28,25 @@ type ProgramConfig struct {
 	RateLimit        int //Количество одновременно исходящих запросов на сервер
 	rsaPublicKeyPath string
 	RSAPublicKey     *rsa.PublicKey
+	LocalIP          string
+	SendingVia       SendingVia
+	URL              string
 }
 
-func ParseFlags() (*ProgramConfig, error) {
+type SendingVia int
 
-	cfg := ProgramConfig{}
+const (
+	HTTP SendingVia = iota
+	GRPC
+)
 
-	cfg.Addr = &NetAddress{Host: "localhost", Port: 8080}
+func LoadConfig() (*ProgramConfig, error) {
+
+	cfg := ProgramConfig{
+		LocalIP:    netutil.LocalIP(),
+		SendingVia: HTTP,
+		Addr:       &NetAddress{Host: "localhost", Port: 8080},
+	}
 
 	configFilePath := configutil.GetConfigFilePath()
 	if configFilePath != "" {
@@ -92,6 +105,14 @@ func ParseFlags() (*ProgramConfig, error) {
 		cfg.rsaPublicKeyPath = value
 	}
 
+	if valueStr := os.Getenv("SENDING_VIA"); valueStr != "" {
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return nil, err
+		}
+		cfg.SendingVia = SendingVia(value)
+	}
+
 	if cfg.rsaPublicKeyPath != "" {
 		var err error
 		cfg.RSAPublicKey, err = rsautil.ReadPublicKey(cfg.rsaPublicKeyPath)
@@ -100,6 +121,8 @@ func ParseFlags() (*ProgramConfig, error) {
 			return nil, err
 		}
 	}
+
+	cfg.URL = fmt.Sprintf("http://%s/update/", cfg.Addr.String())
 
 	return &cfg, nil
 }

@@ -86,9 +86,7 @@ func (c *Closer) Shutdown() error {
 
 }
 
-func (c *Closer) ProcessingErrorsChannel(errorsCh chan error) {
-
-	err := <-errorsCh
+func (c *Closer) ProcessingErrors(err error) {
 
 	if err == nil {
 		return

@@ -3,53 +3,69 @@ package reporter
 
 import (
 	"context"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
+	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender"
 	"time"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/retrier"
-	"github.com/s-turchinskiy/metrics/internal/agent/services"
 	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetrics"
 )
 
-func ReportMetrics(ctx context.Context,
-	h *services.MetricsHandler,
-	sender sendmetric.MetricSender,
-	reportInterval,
-	rateLimit int,
-	errorsChan chan error) {
+type Reporter interface {
+	ReportMetrics(ctx context.Context) error
+	ReportMetricsBatch(cfg context.Context) error
+}
 
-	ticker := time.NewTicker(time.Duration(reportInterval) * time.Second)
+type Report struct {
+	storage        repositories.MetricsRepositorier
+	sender         sender.MetricSender
+	reportInterval int
+	rateLimit      int
+}
+
+func New(storage *repositories.MetricsStorage, sender sender.MetricSender, reportInterval, rateLimit int) *Report {
+	return &Report{
+		storage:        storage,
+		sender:         sender,
+		reportInterval: reportInterval,
+		rateLimit:      rateLimit,
+	}
+}
+
+func (r *Report) ReportMetrics(ctx context.Context) error {
+
+	ticker := time.NewTicker(time.Duration(r.reportInterval) * time.Second)
 	for range ticker.C {
 
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		default:
 
-			metrics, err := h.Storage.GetMetrics()
+			metrics, err := r.storage.GetMetrics()
 			if err != nil {
 				logger.Log.Infoln("failed to report metrics", err.Error())
-				errorsChan <- err
-				return
+				return err
 			}
 
 			jobs := generator(ctx, metrics)
 
 			sendMetrics := sendmetrics.New(
 				jobs,
-				sender,
+				r.sender,
 				retrier.ReportMetricRetry1{},
 			)
 
-			for w := 1; w <= rateLimit; w++ {
+			for w := 1; w <= r.rateLimit; w++ {
 				go sendMetrics.WorkerSender(ctx)
 			}
 
 			sendMetrics.ResultHandling(ctx)
 		}
 	}
+	return nil
 }
 
 func generator(ctx context.Context, input []models.Metrics) chan models.Metrics {

@@ -1,27 +1,24 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender/httpresty"
+	"github.com/s-turchinskiy/metrics/internal/agent/services"
 	"testing"
 	"time"
-
-	"github.com/s-turchinskiy/metrics/internal/agent/repositories"
-	"github.com/s-turchinskiy/metrics/internal/agent/services"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric/httpresty"
 )
 
 func BenchmarkAll(b *testing.B) {
 
-	h := &services.MetricsHandler{
-		Storage: &repositories.MetricsStorage{
-			Gauge:   make(map[string]float64),
-			Counter: make(map[string]int64),
-		},
-		ServerAddress: "http://notfound",
+	storage := &repositories.MetricsStorage{
+		Gauge:   make(map[string]float64),
+		Counter: make(map[string]int64),
 	}
 
 	sender := httpresty.New(
-		fmt.Sprintf("%s/update/", h.ServerAddress),
+		fmt.Sprintf("%s/update/", "http://notfound"),
 	)
 
 	b.ResetTimer()
@@ -32,18 +29,18 @@ func BenchmarkAll(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		err = h.Storage.UpdateMetrics(metrics)
+		err = storage.UpdateMetrics(metrics)
 		if err != nil {
 			b.Fatal(err)
 		}
 
-		metricsStorage, err := h.Storage.GetMetrics()
+		metricsStorage, err := storage.GetMetrics()
 		if err != nil {
 			b.Fatal(err)
 		}
 
 		for _, metric := range metricsStorage {
-			sender.Send(metric)
+			sender.Send(context.Background(), metric)
 		}
 	}
 

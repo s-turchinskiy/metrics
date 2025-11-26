@@ -4,11 +4,11 @@ package sendmetrics
 import (
 	"context"
 	"errors"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender"
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
 	"github.com/s-turchinskiy/metrics/internal/agent/retrier"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 )
 
 type MetricsSender interface {
@@ -21,13 +21,13 @@ type SendMetrics struct {
 	numJobs int
 	jobs    <-chan models.Metrics
 	results chan error
-	sender  sendmetric.MetricSender
+	sender  sender.MetricSender
 	retrier retrier.ReportMetricRetrier
 }
 
 func New(
 	jobs <-chan models.Metrics,
-	sender sendmetric.MetricSender,
+	sender sender.MetricSender,
 	retrier retrier.ReportMetricRetrier) *SendMetrics {
 
 	return &SendMetrics{
@@ -74,9 +74,9 @@ func (s *SendMetrics) WorkerSender(ctx context.Context) {
 			return
 		default:
 			if s.retrier != nil {
-				s.results <- s.retrier.SendWithRetries(metric, s.sender.Send)
+				s.results <- s.retrier.SendWithRetries(ctx, metric, s.sender.Send)
 			} else {
-				s.results <- s.sender.Send(metric)
+				s.results <- s.sender.Send(ctx, metric)
 			}
 		}
 	}

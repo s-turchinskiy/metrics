@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"github.com/golang/mock/gomock"
 	mocksrepository "github.com/s-turchinskiy/metrics/internal/server/repository/mock"
+	"github.com/s-turchinskiy/metrics/internal/server/service"
 	"github.com/s-turchinskiy/metrics/internal/utils/testingcommon"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMetricsHandler_Ping(t *testing.T) {
@@ -29,7 +31,7 @@ func TestMetricsHandler_Ping(t *testing.T) {
 
 	tests := []test{
 		{
-			handler: NewHandler(ctx1, mock, "", true),
+			handler: NewHandler(ctx1, service.New(mock, []time.Duration{0}, ""), true),
 			ct: testingcommon.Test{
 				Name:        "Успешно",
 				Method:      http.MethodGet,
@@ -40,7 +42,7 @@ func TestMetricsHandler_Ping(t *testing.T) {
 				}},
 		},
 		{
-			handler: NewHandler(ctx2, mock, "", true),
+			handler: NewHandler(ctx2, service.New(mock, []time.Duration{0}, ""), true),
 			ct: testingcommon.Test{
 				Name:        "Не успешно",
 				Method:      http.MethodGet,

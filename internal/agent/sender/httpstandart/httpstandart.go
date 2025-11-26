@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/s-turchinskiy/metrics/internal/agent/sender"
 	"github.com/s-turchinskiy/metrics/internal/utils/errutil"
 	"github.com/s-turchinskiy/metrics/internal/utils/hashutil"
 	"io"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/s-turchinskiy/metrics/internal/agent/logger"
 	"github.com/s-turchinskiy/metrics/internal/agent/models"
-	"github.com/s-turchinskiy/metrics/internal/agent/services/sendmetric"
 )
 
 type ReportMetricsHTTPStandart struct {
@@ -50,7 +50,7 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 	resp, err := client.Do(request)
 
 	if err != nil {
-		sendmetric.HandlerErrors(err, metric, r.url)
+		sender.HTTPHandlerErrors(err, metric, r.url)
 		return err
 	}
 
@@ -62,7 +62,7 @@ func (r *ReportMetricsHTTPStandart) Send(metric models.Metrics) error {
 
 	resp.Body.Close()
 
-	if err := sendmetric.CheckResponseStatus(
+	if err := sender.CheckResponseStatus(
 		resp.StatusCode,
 		body,
 		r.url,
